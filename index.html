@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0f0f1a"/>
+<title>Expense Dinas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#0f0f1a;--surf:#1a1a2e;--card:#16213e;--card2:#1e2d50;--acc:#4f8ef7;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--tx:#f1f5f9;--mu:#94a3b8;--bd:rgba(255,255,255,0.09);--r:12px;--rs:8px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);overscroll-behavior:none;}
+
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{background:var(--surf);border-bottom:1px solid var(--bd);padding:14px 16px 10px;position:sticky;top:0;z-index:10;}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:17px;font-weight:700;}
+.trip-badge{font-size:11px;color:var(--acc);background:rgba(79,142,247,0.13);padding:3px 10px;border-radius:99px;margin-top:5px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.content{flex:1;padding:0 0 84px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.tab-view{display:none;padding:16px;}
+.tab-view.active{display:block;}
+
+/* NAV */
+.bot-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--surf);border-top:1px solid var(--bd);display:flex;z-index:10;padding-bottom:env(safe-area-inset-bottom,0);}
+.nv{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 12px;cursor:pointer;border:none;background:none;color:var(--mu);font-size:10px;gap:3px;font-family:inherit;}
+.nv svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.nv.on{color:var(--acc);}
+
+/* FORMS */
+label.lbl{display:block;font-size:11px;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+input[type=text],input[type=number],input[type=date],select{background:var(--card);border:1px solid var(--bd);border-radius:var(--rs);color:var(--tx);font-size:15px;padding:11px 13px;width:100%;-webkit-appearance:none;appearance:none;font-family:inherit;}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+input:focus,select:focus{outline:none;border-color:var(--acc);}
+.fg{margin-bottom:13px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fcard{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:16px;}
+
+/* BUTTONS */
+.btn{border:none;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;padding:11px 16px;font-family:inherit;-webkit-appearance:none;}
+.btn:active{opacity:.8;}
+.btn-acc{background:var(--acc);color:#fff;}
+.btn-gh{background:var(--card2);color:var(--tx);}
+.btn-ok{background:var(--ok);color:#fff;}
+.btn-sm{padding:7px 13px;font-size:12px;}
+.btn-full{width:100%;padding:14px;font-size:15px;}
+
+/* BUDGET */
+.bcard{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;}
+.brow{display:flex;justify-content:space-between;margin-bottom:10px;}
+.blbl{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.bval{font-size:20px;font-weight:700;}
+.btrack{height:6px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;margin:8px 0;}
+.bfill{height:100%;border-radius:99px;transition:width .4s;}
+.bfill.ok{background:var(--ok);}
+.bfill.wn{background:var(--warn);}
+.bfill.ov{background:var(--err);}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.pill{font-size:11px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,0.06);}
+.pill b{font-weight:700;}
+
+/* EXPENSE ITEM */
+.elist{display:flex;flex-direction:column;gap:8px;}
+.eitem{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;}
+.etop{display:flex;justify-content:space-between;align-items:flex-start;}
+.eleft{display:flex;gap:10px;align-items:flex-start;}
+.cico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.edesc{font-size:14px;font-weight:600;}
+.emeta{font-size:11px;color:var(--mu);margin-top:2px;}
+.eamt{font-size:15px;font-weight:700;}
+.edel{background:none;border:none;color:var(--mu);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;font-family:inherit;}
+.eproof{margin-top:8px;}
+.pthumb{width:100%;max-height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--bd);cursor:pointer;}
+
+/* PHOTO */
+.photo-drop{border:1.5px dashed var(--bd);border-radius:var(--rs);padding:18px 16px;text-align:center;cursor:pointer;background:var(--card);}
+.photo-drop p{font-size:13px;color:var(--mu);margin-top:5px;}
+.photo-prev{position:relative;margin-top:8px;}
+.photo-prev img{width:100%;border-radius:var(--rs);max-height:200px;object-fit:cover;}
+.photo-clr{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);border:none;color:#fff;border-radius:50%;width:28px;height:28px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;}
+
+/* MODAL — rendered at body level, never inside .app */
+.mover{position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:none;align-items:flex-end;justify-content:center;}
+.mover.on{display:flex;}
+.mbox{background:var(--surf);border-radius:22px 22px 0 0;padding:22px 18px calc(28px + env(safe-area-inset-bottom,0));width:100%;max-width:480px;}
+.mbox h2{font-size:17px;font-weight:700;margin-bottom:18px;}
+.mbtns{display:flex;gap:10px;margin-top:16px;}
+
+/* CONFIRM MODAL */
+.cbox{background:var(--surf);border-radius:18px;padding:24px 20px;width:calc(100% - 40px);max-width:340px;margin:auto;}
+.cbox h3{font-size:15px;font-weight:700;margin-bottom:8px;}
+.cbox p{font-size:13px;color:var(--mu);margin-bottom:18px;}
+.mover.center{align-items:center;}
+
+/* TOAST */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:var(--err);color:#fff;padding:12px 22px;border-radius:var(--r);font-size:14px;max-width:88vw;text-align:center;pointer-events:none;display:none;}
+.toast.on{display:block;animation:tdrop .25s ease;}
+.toast.ok{background:var(--ok);}
+@keyframes tdrop{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+
+/* IMG LIGHTBOX */
+.lbox{position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:99998;display:none;align-items:center;justify-content:center;}
+.lbox.on{display:flex;}
+.lbox img{max-width:95vw;max-height:88vh;border-radius:8px;}
+.lbox-x{position:fixed;top:18px;right:18px;background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:50%;width:40px;height:40px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;}
+
+/* MISC */
+.stitle{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:10px;}
+.empty{text-align:center;padding:40px 20px;color:var(--mu);}
+.empty .ei{font-size:36px;margin-bottom:10px;}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.sc{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:14px;}
+.sc .sl{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;}
+.sc .sv{font-size:18px;font-weight:700;margin-top:4px;}
+.chip{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;}
+.chip-ok{background:rgba(16,185,129,.15);color:var(--ok);}
+.chip-wn{background:rgba(245,158,11,.15);color:var(--warn);}
+.chip-ov{background:rgba(239,68,68,.15);color:var(--err);}
+.div{height:1px;background:var(--bd);margin:12px 0;}
+.crow{margin-bottom:10px;}
+.crhd{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;}
+.btrack2{height:5px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;}
+.bfill2{height:100%;border-radius:99px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-row">
+      <h1>✈️ Expense Dinas</h1>
+      <button class="btn btn-gh btn-sm" id="btn-new-trip">+ Trip</button>
+    </div>
+    <div id="badge"></div>
+  </div>
+
+  <div class="content">
+
+    <!-- TAB ADD -->
+    <div id="tab-add" class="tab-view active">
+      <div class="fg">
+        <label class="lbl">Pilih Perjalanan</label>
+        <select id="trip-sel"></select>
+      </div>
+      <div id="no-trip" class="empty"><div class="ei">🗺️</div><p>Ketuk <b>+ Trip</b> di atas untuk mulai.</p></div>
+      <div id="trip-body" style="display:none">
+        <div id="bbar"></div>
+        <div class="fcard">
+          <div class="stitle">Tambah Pengeluaran</div>
+          <div class="fg"><label class="lbl">Keterangan</label><input type="text" id="i-desc" placeholder="Contoh: Taksi ke bandara"/></div>
+          <div class="row2">
+            <div class="fg"><label class="lbl">Jumlah (Rp)</label><input type="number" id="i-amt" placeholder="0" min="0" inputmode="numeric"/></div>
+            <div class="fg"><label class="lbl">Tanggal</label><input type="date" id="i-date"/></div>
+          </div>
+          <div class="fg"><label class="lbl">Kategori</label>
+            <select id="i-cat">
+              <option value="entertainment">🎉 Entertain</option>
+              <option value="transport">🚗 Transport Dalam Kota</option>
+              <option value="food">🍽️ Food &amp; Beverage</option>
+              <option value="overhead">🚆 Overhead (Train/Car)</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="lbl">Foto Bukti</label>
+            <div class="photo-drop" id="photo-drop">
+              <input type="file" id="photo-inp" accept="image/*" capture="environment" style="display:none"/>
+              <div style="font-size:28px">📷</div>
+              <p>Ketuk untuk kamera / galeri</p>
+            </div>
+            <div class="photo-prev" id="photo-prev" style="display:none">
+              <img id="photo-img" src=""/>
+              <button class="photo-clr" id="photo-clr">×</button>
+            </div>
+          </div>
+          <button class="btn btn-acc btn-full" id="btn-add">+ Tambah Pengeluaran</button>
+        </div>
+        <div class="stitle">Hari ini</div>
+        <div id="today-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB SUMMARY -->
+    <div id="tab-summary" class="tab-view">
+      <div id="summary-body"><div class="empty"><div class="ei">📊</div><p>Pilih trip dulu.</p></div></div>
+    </div>
+
+    <!-- TAB ALL -->
+    <div id="tab-all" class="tab-view">
+      <div id="all-body"><div class="empty"><div class="ei">🧾</div><p>Belum ada data.</p></div></div>
+    </div>
+
+    <!-- TAB EXPORT -->
+    <div id="tab-export" class="tab-view">
+      <div class="fcard">
+        <div class="stitle">Export PDF</div>
+        <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Laporan lengkap + foto bukti per trip.</p>
+        <div id="export-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bot-nav">
+    <button class="nv on" id="nv-add" onclick="goTab('add')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Tambah
+    </button>
+    <button class="nv" id="nv-summary" onclick="goTab('summary')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Ringkasan
+    </button>
+    <button class="nv" id="nv-all" onclick="goTab('all')">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>Rincian
+    </button>
+    <button class="nv" id="nv-export" onclick="goTab('export')">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Export
+    </button>
+  </nav>
+</div>
+
+<!-- ═══ MODALS (outside .app) ═══ -->
+
+<!-- Trip Modal -->
+<div class="mover" id="m-trip">
+  <div class="mbox">
+    <h2>Perjalanan Baru</h2>
+    <div class="fg"><label class="lbl">Nama Perjalanan *</label><input type="text" id="m-name" placeholder="Dinas Jakarta Juni 2025"/></div>
+    <div class="fg"><label class="lbl">Tujuan</label><input type="text" id="m-dest" placeholder="Jakarta"/></div>
+    <div class="fg"><label class="lbl">Nama Karyawan</label><input type="text" id="m-emp" placeholder="Nama lengkap"/></div>
+    <div class="fg"><label class="lbl">Total Budget (Rp) *</label><input type="number" id="m-budget" placeholder="5000000" min="0" inputmode="numeric"/></div>
+    <div class="mbtns">
+      <button class="btn btn-gh" style="flex:1" id="m-trip-cancel">Batal</button>
+      <button class="btn btn-acc" style="flex:2" id="m-trip-ok">Buat Trip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete modal -->
+<div class="mover center" id="m-confirm">
+  <div class="cbox">
+    <h3>Hapus pengeluaran?</h3>
+    <p id="m-confirm-desc">Tindakan ini tidak bisa dibatalkan.</p>
+    <div class="mbtns">
+      <button class="btn btn-gh" style="flex:1" id="m-confirm-no">Batal</button>
+      <button class="btn" style="flex:1;background:var(--err);color:#fff" id="m-confirm-yes">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Lightbox -->
+<div class="lbox" id="lbox">
+  <button class="lbox-x" id="lbox-x">×</button>
+  <img id="lbox-img" src=""/>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const CAPS = { transport: 75000, food: 120000 };
+const CATS = {
+  entertainment: { label:'Entertain',           emoji:'🎉', color:'#7c3aed', bg:'rgba(124,58,237,.15)' },
+  transport:     { label:'Transport Dalam Kota', emoji:'🚗', color:'#4f8ef7', bg:'rgba(79,142,247,.15)' },
+  food:          { label:'Food & Beverage',      emoji:'🍽️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+  overhead:      { label:'Overhead (Train/Car)', emoji:'🚆', color:'#10b981', bg:'rgba(16,185,129,.15)' },
+};
+
+let trips = [];
+let activeIdx = -1;
+let photoB64 = null;
+let pendingDelTrip = -1, pendingDelId = -1;
+
+try { trips = JSON.parse(localStorage.getItem('exp_trips') || '[]'); } catch(e){}
+try { activeIdx = parseInt(localStorage.getItem('exp_idx') || '-1'); } catch(e){}
+if (activeIdx >= trips.length) activeIdx = -1;
+
+function save() {
+  try {
+    localStorage.setItem('exp_trips', JSON.stringify(trips));
+    localStorage.setItem('exp_idx', activeIdx);
+  } catch(e) { toast('Storage penuh – coba hapus beberapa foto bukti.'); }
+}
+const trip = () => activeIdx >= 0 ? trips[activeIdx] : null;
+
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+const fmtRp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+const fmtDate = d => d ? new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '';
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTmr;
+function toast(msg, type='err') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast on' + (type==='ok' ? ' ok' : '');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => el.className = 'toast', 3200);
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('on'); }
+function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+
+// ── TRIP MODAL ────────────────────────────────────────────────────────────────
+document.getElementById('btn-new-trip').addEventListener('click', () => {
+  ['m-name','m-dest','m-emp','m-budget'].forEach(id => document.getElementById(id).value = '');
+  openModal('m-trip');
+  setTimeout(() => document.getElementById('m-name').focus(), 100);
+});
+document.getElementById('m-trip-cancel').addEventListener('click', () => closeModal('m-trip'));
+document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
+
+document.getElementById('m-trip-ok').addEventListener('click', () => {
+  const name   = document.getElementById('m-name').value.trim();
+  const dest   = document.getElementById('m-dest').value.trim();
+  const emp    = document.getElementById('m-emp').value.trim();
+  const budget = parseFloat(document.getElementById('m-budget').value);
+  if (!name)          { toast('Nama perjalanan wajib diisi.'); return; }
+  if (!budget || budget <= 0) { toast('Budget harus lebih dari 0.'); return; }
+  trips.push({ name, dest, employee: emp, budget, expenses: [], created: todayStr() });
+  activeIdx = trips.length - 1;
+  save();
+  closeModal('m-trip');
+  refreshTripSel();
+  renderBudgetBar();
+  renderTodayList();
+  updateBadge();
+  showTripBody(true);
+  toast('Trip berhasil dibuat!', 'ok');
+});
+
+// ── CONFIRM DELETE MODAL ──────────────────────────────────────────────────────
+document.getElementById('m-confirm-no').addEventListener('click', () => closeModal('m-confirm'));
+document.getElementById('m-confirm-yes').addEventListener('click', () => {
+  if (pendingDelTrip >= 0 && pendingDelId >= 0) {
+    trips[pendingDelTrip].expenses = trips[pendingDelTrip].expenses.filter(e => e.id !== pendingDelId);
+    save();
+    renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
+    toast('Dihapus.', 'ok');
+  }
+  closeModal('m-confirm');
+});
+
+function askDelete(ti, id, desc) {
+  pendingDelTrip = ti; pendingDelId = id;
+  document.getElementById('m-confirm-desc').textContent = '"' + desc + '"';
+  openModal('m-confirm');
+}
+
+// ── PHOTO ─────────────────────────────────────────────────────────────────────
+document.getElementById('photo-drop').addEventListener('click', () => document.getElementById('photo-inp').click());
+document.getElementById('photo-inp').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    photoB64 = ev.target.result;
+    document.getElementById('photo-drop').style.display = 'none';
+    document.getElementById('photo-prev').style.display = 'block';
+    document.getElementById('photo-img').src = photoB64;
+  };
+  r.readAsDataURL(f);
+});
+document.getElementById('photo-clr').addEventListener('click', clearPhoto);
+function clearPhoto() {
+  photoB64 = null;
+  document.getElementById('photo-inp').value = '';
+  document.getElementById('photo-drop').style.display = '';
+  document.getElementById('photo-prev').style.display = 'none';
+  document.getElementById('photo-img').src = '';
+}
+
+// ── IMAGE LIGHTBOX ────────────────────────────────────────────────────────────
+document.getElementById('lbox').addEventListener('click', e => { if (e.target !== document.getElementById('lbox-img')) closeLbox(); });
+document.getElementById('lbox-x').addEventListener('click', closeLbox);
+function openLbox(src) { document.getElementById('lbox-img').src = src; document.getElementById('lbox').classList.add('on'); }
+function closeLbox() { document.getElementById('lbox').classList.remove('on'); }
+
+// ── VALIDATION ────────────────────────────────────────────────────────────────
+function validate(t, cat, amount, date) {
+  const spent = t.expenses.reduce((s,e) => s+e.amount, 0);
+  const rem   = t.budget - spent;
+  if (amount > rem) return `Melebihi sisa budget!\nSisa: ${fmtRp(rem)}`;
+  if (cat === 'transport') {
+    const daySum = t.expenses.filter(e => e.cat==='transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
+    if (daySum + amount > CAPS.transport)
+      return `Transport harian melebihi batas ${fmtRp(CAPS.transport)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(CAPS.transport-daySum)}`;
+  }
+  if (cat === 'food') {
+    const daySum = t.expenses.filter(e => e.cat==='food' && e.date===date).reduce((s,e)=>s+e.amount,0);
+    if (daySum + amount > CAPS.food)
+      return `F&B harian melebihi batas ${fmtRp(CAPS.food)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(CAPS.food-daySum)}`;
+  }
+  return null;
+}
+
+// ── ADD EXPENSE ───────────────────────────────────────────────────────────────
+document.getElementById('btn-add').addEventListener('click', () => {
+  const t = trip(); if (!t) { toast('Pilih trip dulu.'); return; }
+  const desc   = document.getElementById('i-desc').value.trim();
+  const amount = parseFloat(document.getElementById('i-amt').value);
+  const date   = document.getElementById('i-date').value;
+  const cat    = document.getElementById('i-cat').value;
+  if (!desc)              { toast('Isi keterangan.'); return; }
+  if (!amount || amount<=0){ toast('Isi jumlah yang valid.'); return; }
+  if (!date)              { toast('Pilih tanggal.'); return; }
+  const err = validate(t, cat, amount, date);
+  if (err) { toast('⚠️ ' + err); return; }
+  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64 });
+  save();
+  document.getElementById('i-desc').value = '';
+  document.getElementById('i-amt').value  = '';
+  clearPhoto();
+  renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
+  toast('✓ Ditambahkan!', 'ok');
+});
+
+// ── TRIP SELECT ───────────────────────────────────────────────────────────────
+function refreshTripSel() {
+  const sel = document.getElementById('trip-sel');
+  sel.innerHTML = '<option value="">— Pilih atau buat trip —</option>';
+  trips.forEach((t,i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `${t.name}${t.dest?' · '+t.dest:''}`;
+    sel.appendChild(o);
+  });
+  if (activeIdx >= 0) sel.value = activeIdx;
+}
+document.getElementById('trip-sel').addEventListener('change', function() {
+  activeIdx = this.value === '' ? -1 : parseInt(this.value);
+  save();
+  updateBadge();
+  showTripBody(activeIdx >= 0);
+  if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+});
+function showTripBody(show) {
+  document.getElementById('no-trip').style.display   = show ? 'none' : '';
+  document.getElementById('trip-body').style.display = show ? '' : 'none';
+}
+function updateBadge() {
+  const t = trip();
+  document.getElementById('badge').innerHTML = t
+    ? `<span class="trip-badge">📍 ${t.name}${t.dest?' → '+t.dest:''}</span>` : '';
+}
+
+// ── BUDGET BAR ────────────────────────────────────────────────────────────────
+function renderBudgetBar() {
+  const t = trip(); if (!t) return;
+  const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
+  const rem   = t.budget - spent;
+  const pct   = Math.min(100, Math.round(spent/t.budget*100));
+  const cls   = pct<70?'ok':pct<90?'wn':'ov';
+  const tod   = todayStr();
+  const dTr   = t.expenses.filter(e=>e.cat==='transport'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
+  const dFd   = t.expenses.filter(e=>e.cat==='food'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
+  document.getElementById('bbar').innerHTML = `
+    <div class="bcard">
+      <div class="brow">
+        <div><div class="blbl">Total Budget</div><div class="bval">${fmtRp(t.budget)}</div></div>
+        <div style="text-align:right"><div class="blbl">Sisa</div><div class="bval" style="color:${rem<0?'var(--err)':'var(--ok)'}">${fmtRp(rem)}</div></div>
+      </div>
+      <div class="btrack"><div class="bfill ${cls}" style="width:${pct}%"></div></div>
+      <div style="font-size:12px;color:var(--mu);text-align:right">${pct}% terpakai · ${fmtRp(spent)}</div>
+      <div class="pills">
+        <div class="pill">🚗 Hari ini: <b>${fmtRp(dTr)}</b> / ${fmtRp(CAPS.transport)}</div>
+        <div class="pill">🍽️ Hari ini: <b>${fmtRp(dFd)}</b> / ${fmtRp(CAPS.food)}</div>
+      </div>
+    </div>`;
+}
+
+// ── EXPENSE CARD ──────────────────────────────────────────────────────────────
+function eCard(e, ti) {
+  const c = CATS[e.cat]||CATS.overhead;
+  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/></div>` : '';
+  return `<div class="eitem">
+    <div class="etop">
+      <div class="eleft">
+        <div class="cico" style="background:${c.bg}">${c.emoji}</div>
+        <div><div class="edesc">${e.desc}</div><div class="emeta">${c.label} · ${fmtDate(e.date)}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="eamt">${fmtRp(e.amount)}</div>
+        <button class="edel" onclick="askDelete(${ti},${e.id},'${e.desc.replace(/'/g,"\\'")}')">×</button>
+      </div>
+    </div>${proof}
+  </div>`;
+}
+
+// ── TODAY LIST ────────────────────────────────────────────────────────────────
+function renderTodayList() {
+  const t = trip(); if (!t) return;
+  const items = t.expenses.filter(e=>e.date===todayStr()).sort((a,b)=>b.id-a.id);
+  const el = document.getElementById('today-list');
+  el.innerHTML = items.length
+    ? '<div class="elist">'+items.map(e=>eCard(e,activeIdx)).join('')+'</div>'
+    : '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada pengeluaran hari ini.</p></div>';
+}
+
+// ── SUMMARY ───────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const el = document.getElementById('summary-body');
+  if (!trips.length) { el.innerHTML='<div class="empty"><div class="ei">📊</div><p>Belum ada trip.</p></div>'; return; }
+  el.innerHTML = trips.map((t,ti) => {
+    const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
+    const rem   = t.budget - spent;
+    const pct   = Math.min(100,Math.round(spent/t.budget*100));
+    const cls   = pct<70?'chip-ok':pct<90?'chip-wn':'chip-ov';
+    const catMap= {};
+    t.expenses.forEach(e=>{ catMap[e.cat]=(catMap[e.cat]||0)+e.amount; });
+    const bars = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>{
+      const c=CATS[cat]||CATS.overhead;
+      const p=spent>0?Math.round(amt/spent*100):0;
+      return `<div class="crow"><div class="crhd"><span>${c.emoji} ${c.label}</span><span>${fmtRp(amt)} <span style="color:var(--mu);font-size:11px">${p}%</span></span></div><div class="btrack2"><div class="bfill2" style="width:${p}%;background:${c.color}"></div></div></div>`;
+    }).join('');
+    return `<div class="fcard" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><div style="font-size:15px;font-weight:700">${t.name}</div><div style="font-size:12px;color:var(--mu)">${t.dest||''}${t.employee?' · '+t.employee:''}</div></div>
+        <span class="chip ${cls}">${pct}%</span>
+      </div>
+      <div class="sgrid">
+        <div class="sc"><div class="sl">Budget</div><div class="sv" style="font-size:14px">${fmtRp(t.budget)}</div></div>
+        <div class="sc"><div class="sl">Terpakai</div><div class="sv" style="font-size:14px;color:var(--acc)">${fmtRp(spent)}</div></div>
+        <div class="sc"><div class="sl">Sisa</div><div class="sv" style="font-size:14px;color:${rem<0?'var(--err)':'var(--ok)'}">${fmtRp(rem)}</div></div>
+        <div class="sc"><div class="sl">Items</div><div class="sv">${t.expenses.length}</div></div>
+      </div>
+      <div class="div"></div>
+      <div class="stitle" style="margin-bottom:10px">Breakdown</div>
+      ${bars||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
+    </div>`;
+  }).join('');
+}
+
+// ── ALL EXPENSES ──────────────────────────────────────────────────────────────
+function renderAll() {
+  const el = document.getElementById('all-body');
+  const all = [];
+  trips.forEach((t,ti)=>t.expenses.forEach(e=>all.push({...e,tripName:t.name,ti})));
+  if (!all.length) { el.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Belum ada pengeluaran.</p></div>'; return; }
+  all.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id);
+  let prev='', html='';
+  all.forEach(e=>{
+    if (e.date!==prev){ html+=`<div class="stitle" style="margin-top:${prev?'16px':'0'}">${fmtDate(e.date)}</div>`; prev=e.date; }
+    html+=eCard(e,e.ti)+'<div style="margin-bottom:8px"></div>';
+  });
+  el.innerHTML=html;
+}
+
+// ── EXPORT TAB ────────────────────────────────────────────────────────────────
+function renderExport() {
+  const el = document.getElementById('export-list');
+  if (!trips.length) { el.innerHTML='<p style="color:var(--mu);font-size:13px">Belum ada trip.</p>'; return; }
+  el.innerHTML = trips.map((t,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd)">
+      <div><div style="font-size:14px;font-weight:600">${t.name}</div>
+      <div style="font-size:12px;color:var(--mu)">${t.expenses.length} item · ${fmtRp(t.expenses.reduce((s,e)=>s+e.amount,0))}</div></div>
+      <button class="btn btn-ok btn-sm" onclick="exportPDF(${i})">📄 PDF</button>
+    </div>`).join('');
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────────
+async function exportPDF(ti) {
+  const t = trips[ti]; if (!t) return;
+  if (typeof window.jspdf === 'undefined') { toast('jsPDF belum siap, coba lagi.'); return; }
+  toast('Membuat PDF...', 'ok');
+  await new Promise(r=>setTimeout(r,150));
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210, M=14; let y=20;
+  const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
+  const rem   = t.budget - spent;
+
+  doc.setFillColor(26,26,46); doc.rect(0,0,W,42,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18);doc.setFont(undefined,'bold');
+  doc.text('LAPORAN PERJALANAN DINAS',M,16);
+  doc.setFontSize(10);doc.setFont(undefined,'normal');
+  doc.text(t.name,M,24);
+  doc.text((t.dest||'')+(t.employee?' | '+t.employee:''),M,30);
+  doc.text('Dicetak: '+new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),M,36);
+  y=52;
+
+  doc.setFillColor(245,247,250);doc.rect(M,y,W-M*2,28,'F');
+  const cs=[M+2,68,118,162];
+  const lbs=['Total Budget','Terpakai','Sisa Budget','Jumlah Item'];
+  const vs=[fmtRp(t.budget),fmtRp(spent),fmtRp(rem),t.expenses.length+' item'];
+  lbs.forEach((l,i)=>{doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(120,120,120);doc.text(l,cs[i],y+8);});
+  vs.forEach((v,i)=>{doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,30,30);doc.text(String(v),cs[i],y+18);});
+  y+=34;
+
+  doc.setFillColor(79,142,247);doc.rect(M,y,W-M*2,8,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont(undefined,'bold');
+  const tc=[M+2,36,86,128,163];
+  ['No','Tanggal','Keterangan','Kategori','Jumlah'].forEach((h,i)=>doc.text(h,tc[i],y+5.5));
+  y+=10;
+  let rn=1;
+  for(const e of [...t.expenses].sort((a,b)=>(a.date||'').localeCompare(b.date||''))){
+    if(y>250){doc.addPage();y=20;}
+    const c=CATS[e.cat]||CATS.overhead;
+    if(rn%2===0){doc.setFillColor(248,249,252);doc.rect(M,y-1,W-M*2,9,'F');}
+    doc.setTextColor(50,50,50);doc.setFontSize(8);doc.setFont(undefined,'normal');
+    doc.text(String(rn),tc[0],y+5);
+    doc.text(fmtDate(e.date),tc[1],y+5);
+    doc.text(doc.splitTextToSize(e.desc,44)[0],tc[2],y+5);
+    doc.text(c.label,tc[3],y+5);
+    doc.setFont(undefined,'bold');doc.text(fmtRp(e.amount),tc[4],y+5);
+    doc.setFont(undefined,'normal');
+    y+=9;rn++;
+  }
+  doc.setFillColor(26,26,46);doc.rect(M,y,W-M*2,9,'F');
+  doc.setTextColor(255,255,255);doc.setFont(undefined,'bold');doc.setFontSize(9);
+  doc.text('TOTAL',tc[0],y+5.5);doc.text(fmtRp(spent),tc[4],y+5.5);
+  y+=18;
+
+  const wProof=t.expenses.filter(e=>e.proof);
+  if(wProof.length){
+    if(y>230){doc.addPage();y=20;}
+    doc.setFillColor(26,26,46);doc.rect(M,y,W-M*2,8,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont(undefined,'bold');
+    doc.text('BUKTI PENGELUARAN',M+2,y+5.5);y+=14;
+    for(const e of wProof){
+      const c=CATS[e.cat]||CATS.overhead;
+      if(y>230){doc.addPage();y=20;}
+      doc.setTextColor(50,50,50);doc.setFontSize(9);doc.setFont(undefined,'bold');
+      doc.text(e.desc,M,y);
+      doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
+      doc.text(fmtDate(e.date)+' · '+c.label+' · '+fmtRp(e.amount),M,y+5);
+      y+=10;
+      try{
+        doc.addImage(e.proof,'JPEG',M,y,W-M*2,58);y+=66;
+      }catch{
+        doc.setTextColor(180,60,60);doc.setFontSize(8);doc.text('[Gambar tidak dapat ditampilkan]',M,y+4);y+=10;
+      }
+      doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=6;
+    }
+  }
+  doc.setPage(doc.internal.getNumberOfPages());
+  const pH=doc.internal.pageSize.height;
+  doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont(undefined,'normal');
+  doc.text('Expense Dinas Tracker',W/2,pH-8,{align:'center'});
+  doc.save('Laporan_'+t.name.replace(/\s+/g,'_')+'_'+todayStr()+'.pdf');
+  toast('✓ PDF berhasil didownload!','ok');
+}
+
+// ── TAB ───────────────────────────────────────────────────────────────────────
+function goTab(name) {
+  document.querySelectorAll('.tab-view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nv').forEach(el=>el.classList.remove('on'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('nv-'+name).classList.add('on');
+  if(name==='summary') renderSummary();
+  if(name==='all')     renderAll();
+  if(name==='export')  renderExport();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.getElementById('i-date').value = todayStr();
+refreshTripSel();
+updateBadge();
+showTripBody(activeIdx >= 0);
+if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+renderExport();
+</script>
+</body>
+</html>
