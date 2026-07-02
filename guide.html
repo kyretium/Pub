@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Panduan Penggunaan - Expense Dinas</title>
+<style>
+:root{--bg:#0f0f1a;--surf:#1a1a2e;--card:#16213e;--acc:#4f8ef7;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--tx:#f1f5f9;--mu:#94a3b8;--bd:rgba(255,255,255,0.09);--r:12px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--tx);}
+.container{max-width:900px;margin:0 auto;padding:20px;min-height:100vh;}
+.header{text-align:center;margin-bottom:40px;padding:40px 20px;background:linear-gradient(135deg,var(--card),var(--card2));border-radius:var(--r);border:1px solid var(--bd);}
+.header h1{font-size:36px;margin-bottom:10px;}
+.header p{font-size:16px;color:var(--mu);}
+.section{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:24px;margin-bottom:20px;}
+.section h2{font-size:20px;margin-bottom:16px;color:var(--acc);display:flex;align-items:center;gap:10px;}
+.section h3{font-size:16px;margin:16px 0 8px;color:var(--tx);}
+.section p{line-height:1.6;color:var(--mu);margin-bottom:12px;}
+.steps{counter-reset:step;list-style:none;padding:0;}
+.steps li{counter-increment:step;margin-bottom:16px;padding-left:40px;position:relative;line-height:1.6;}
+.steps li:before{content:counter(step);position:absolute;left:0;width:32px;height:32px;background:var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;}
+.feature{background:var(--card2);border-left:4px solid var(--acc);padding:16px;margin:12px 0;border-radius:4px;}
+.badge{display:inline-block;padding:4px 12px;background:rgba(79,142,247,0.2);color:var(--acc);border-radius:99px;font-size:12px;font-weight:600;margin:4px 4px 4px 0;}
+.note{background:rgba(245,158,11,0.15);border-left:4px solid var(--warn);padding:12px;border-radius:4px;margin:12px 0;}
+.table{width:100%;border-collapse:collapse;margin:16px 0;}
+.table th{background:var(--card2);padding:12px;text-align:left;font-weight:600;border-bottom:1px solid var(--bd);}
+.table td{padding:12px;border-bottom:1px solid var(--bd);}
+.table tr:nth-child(even){background:rgba(255,255,255,0.02);}
+.icon-box{display:inline-block;width:48px;height:48px;background:var(--card2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-right:12px;}
+.video-box{background:var(--card2);padding:20px;border-radius:var(--r);margin:16px 0;text-align:center;}
+.btn-back{display:inline-block;background:var(--acc);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:20px;transition:opacity 0.3s;}
+.btn-back:hover{opacity:0.8;}
+.faq-item{margin-bottom:20px;}
+.faq-q{background:var(--card2);padding:16px;cursor:pointer;border-radius:8px;font-weight:600;display:flex;justify-content:space-between;align-items:center;user-select:none;}
+.faq-q:hover{background:rgba(79,142,247,0.2);}
+.faq-a{display:none;background:var(--card);padding:16px;margin-top:8px;border-left:4px solid var(--acc);line-height:1.6;color:var(--mu);}
+.faq-a.show{display:block;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0;}
+.card-feature{background:var(--card2);padding:20px;border-radius:var(--r);border:1px solid var(--bd);}
+.card-feature h4{color:var(--acc);margin-bottom:8px;}
+.footer{text-align:center;padding:40px 20px;color:var(--mu);border-top:1px solid var(--bd);margin-top:40px;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" class="btn-back">← Kembali ke Aplikasi</a>
+
+  <div class="header">
+    <h1>✈️ Panduan Penggunaan Expense Dinas</h1>
+    <p>Tutorial lengkap menggunakan aplikasi pencatat pengeluaran perjalanan dinas</p>
+  </div>
+
+  <!-- QUICK START -->
+  <div class="section">
+    <h2>🚀 Mulai Cepat (5 Menit)</h2>
+    <ol class="steps">
+      <li><strong>Buka aplikasi</strong> → Klik tombol <span style="background:var(--card2);padding:2px 8px;border-radius:4px;">+ Trip</span> di atas</li>
+      <li><strong>Isi informasi trip</strong>
+        <ul style="margin-top:8px;margin-left:20px;color:var(--mu);">
+          <li>Nama perjalanan (contoh: "Dinas Jakarta Juni 2025")</li>
+          <li>Tujuan (contoh: "Jakarta")</li>
+          <li>Nama karyawan</li>
+          <li>Jumlah staff dan manager yang berangkat</li>
+          <li>Total budget</li>
+        </ul>
+      </li>
+      <li><strong>Tambah pengeluaran</strong> di tab "Tambah"</li>
+      <li><strong>Lihat ringkasan</strong> di tab "Ringkasan"</li>
+      <li><strong>Export PDF</strong> di tab "Export"</li>
+    </ol>
+  </div>
+
+  <!-- FITUR UTAMA -->
+  <div class="section">
+    <h2>✨ Fitur Utama</h2>
+    <div class="grid">
+      <div class="card-feature">
+        <h4>📷 Foto Bukti</h4>
+        <p>Tangkap bukti pengeluaran dengan foto. Otomatis ter-record tanggal, jam, dan lokasi.</p>
+      </div>
+      <div class="card-feature">
+        <h4>💰 Tracking Budget</h4>
+        <p>Monitor pengeluaran real-time dengan progress bar dan cap category yang dinamis.</p>
+      </div>
+      <div class="card-feature">
+        <h4>📊 Laporan Rinci</h4>
+        <p>Lihat breakdown pengeluaran per kategori dan ringkasan per trip.</p>
+      </div>
+      <div class="card-feature">
+        <h4>📄 Export PDF</h4>
+        <p>Download laporan lengkap dengan semua bukti foto dalam satu file PDF.</p>
+      </div>
+      <div class="card-feature">
+        <h4>📱 Offline Mode</h4>
+        <p>Semua data tersimpan lokal di device. Tidak butuh internet untuk input data.</p>
+      </div>
+      <div class="card-feature">
+        <h4>🔐 Data Aman</h4>
+        <p>Tidak ada data yang dikirim ke server. 100% private dan aman.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANDUAN DETAIL -->
+  <div class="section">
+    <h2>📖 Panduan Detail</h2>
+
+    <h3>1. Membuat Trip Baru</h3>
+    <ol class="steps">
+      <li>Klik tombol <span style="background:var(--card2);padding:2px 8px;border-radius:4px;">+ Trip</span> di bagian atas</li>
+      <li>Isi form dengan data berikut:
+        <div class="feature">
+          <strong>Nama Perjalanan *</strong> (wajib)<br/>
+          Contoh: "Dinas Jakarta Juni 2025" atau "Kunjungan Klien Bandung"<br/><br/>
+          <strong>Tujuan</strong> (opsional)<br/>
+          Contoh: "Jakarta", "Bandung"<br/><br/>
+          <strong>Nama Karyawan</strong> (opsional)<br/>
+          Nama yang melakukan perjalanan<br/><br/>
+          <strong>Jumlah Staff</strong> (wajib)<br/>
+          Berapa banyak staff yang berangkat (0 atau lebih)<br/><br/>
+          <strong>Jumlah Manager</strong> (wajib)<br/>
+          Berapa banyak manager yang berangkat (0 atau lebih)<br/><br/>
+          <strong>Total Budget *</strong> (wajib)<br/>
+          Contoh: 5000000 (untuk 5 juta rupiah)
+        </div>
+      </li>
+      <li>Klik <span style="background:var(--acc);padding:2px 8px;border-radius:4px;color:#fff;">Buat Trip</span></li>
+    </ol>
+
+    <h3>2. Menambah Pengeluaran</h3>
+    <ol class="steps">
+      <li>Pilih trip di dropdown "Pilih Perjalanan"</li>
+      <li>Isi informasi pengeluaran:
+        <div class="feature">
+          <strong>Keterangan *</strong><br/>
+          Contoh: "Taksi ke bandara", "Makan siang", "Hotel"<br/><br/>
+          <strong>Jumlah (Rp) *</strong><br/>
+          Nominal pengeluaran<br/><br/>
+          <strong>Tanggal *</strong><br/>
+          Tanggal pengeluaran (default: hari ini)<br/><br/>
+          <strong>Kategori</strong><br/>
+          Pilih kategori pengeluaran (lihat tabel di bawah)
+        </div>
+      </li>
+      <li>Upload foto bukti (opsional tapi direkomendasikan)
+        <div class="note">
+          <strong>💡 Tip:</strong> Saat upload foto, aplikasi akan otomatis menangkap:<br/>
+          ⏰ Tanggal dan jam foto diambil<br/>
+          📍 Lokasi GPS (jika device mendukung)<br/>
+          Ini membantu mencegah pemalsuan bukti.
+        </div>
+      </li>
+      <li>Klik <span style="background:var(--acc);padding:2px 8px;border-radius:4px;color:#fff;">+ Tambah Pengeluaran</span></li>
+    </ol>
+
+    <h3>3. Kategori Pengeluaran & Budget Cap</h3>
+    <p>Setiap kategori memiliki limit per hari yang berbeda tergantung jumlah engineer:</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kategori</th>
+          <th>Cap Per Hari</th>
+          <th>Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>🚗 Transport Dalam Kota</td>
+          <td>75.000 × jumlah engineer</td>
+          <td>Taksi, ojek, bus lokal</td>
+        </tr>
+        <tr>
+          <td>🍽️ Food & Beverage</td>
+          <td>(Staff × 125.000) + (Manager × 200.000)</td>
+          <td>Makanan dan minuman</td>
+        </tr>
+        <tr>
+          <td>🛣️ Transport ke Tujuan</td>
+          <td>120.000 × jumlah engineer</td>
+          <td>Pesawat, kereta, mobil antar kota</td>
+        </tr>
+        <tr>
+          <td>🚆 Overhead</td>
+          <td>Tidak ada limit</td>
+          <td>Biaya tambahan lainnya</td>
+        </tr>
+        <tr>
+          <td>🎉 Entertain</td>
+          <td>Tidak ada limit</td>
+          <td>Hiburan, acara</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>4. Contoh Perhitungan Budget</h3>
+    <div class="feature">
+      <strong>Skenario 1: 2 Staff</strong><br/>
+      • Transport Dalam Kota: 75.000 × 2 = 150.000/hari<br/>
+      • Food: 125.000 × 2 = 250.000/hari<br/>
+      • Transport ke Tujuan: 120.000 × 2 = 240.000/hari<br/><br/>
+
+      <strong>Skenario 2: 1 Staff + 1 Manager</strong><br/>
+      • Transport Dalam Kota: 75.000 × 2 = 150.000/hari<br/>
+      • Food: (125.000 × 1) + (200.000 × 1) = 325.000/hari<br/>
+      • Transport ke Tujuan: 120.000 × 2 = 240.000/hari<br/><br/>
+
+      <strong>Skenario 3: 3 Manager</strong><br/>
+      • Transport Dalam Kota: 75.000 × 3 = 225.000/hari<br/>
+      • Food: 200.000 × 3 = 600.000/hari<br/>
+      • Transport ke Tujuan: 120.000 × 3 = 360.000/hari
+    </div>
+  </div>
+
+  <!-- TAB TABS -->
+  <div class="section">
+    <h2>📑 Panduan Tab</h2>
+
+    <h3>Tab 1: Tambah (➕)</h3>
+    <p>Tempat untuk:</p>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Memilih trip yang aktif</li>
+      <li>Menambah pengeluaran baru</li>
+      <li>Melihat pengeluaran hari ini</li>
+      <li>Progress budget real-time</li>
+    </ul>
+
+    <h3>Tab 2: Ringkasan (📊)</h3>
+    <p>Menampilkan:</p>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Semua trip yang ada</li>
+      <li>Total budget, terpakai, dan sisa untuk setiap trip</li>
+      <li>Breakdown pengeluaran per kategori (grafik)</li>
+      <li>Persentase penggunaan budget</li>
+    </ul>
+
+    <h3>Tab 3: Rincian (📋)</h3>
+    <p>Menampilkan:</p>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Semua pengeluaran dari semua trip</li>
+      <li>Diurutkan berdasarkan tanggal (terbaru dulu)</li>
+      <li>Bisa lihat foto bukti dengan klik thumbnail</li>
+      <li>Bisa hapus pengeluaran</li>
+    </ul>
+
+    <h3>Tab 4: Export (📄)</h3>
+    <p>Untuk:</p>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Download laporan PDF per trip</li>
+      <li>Laporan mencakup tabel pengeluaran + semua foto bukti</li>
+      <li>Siap untuk di-submit ke pimpinan/akuntansi</li>
+    </ul>
+  </div>
+
+  <!-- FITUR FOTO & GEOLOCATION -->
+  <div class="section">
+    <h2>📷 Fitur Foto Bukti & Geolocation</h2>
+
+    <h3>Cara Upload Foto</h3>
+    <ol class="steps">
+      <li>Di form pengeluaran, cari section "Foto Bukti"</li>
+      <li>Klik area dengan icon 📷</li>
+      <li>Pilih dari:
+        <ul style="margin:8px 0 0 20px;color:var(--mu);">
+          <li><strong>Kamera</strong> - ambil foto langsung</li>
+          <li><strong>Galeri</strong> - pilih dari foto yang sudah ada</li>
+        </ul>
+      </li>
+      <li>Saat upload foto, aplikasi akan meminta izin geolocation
+        <div class="note">
+          <strong>Izin Geolocation:</strong><br/>
+          • Klik "Allow" untuk mencatat lokasi<br/>
+          • Klik "Block" jika tidak ingin (aplikasi tetap jalan)
+        </div>
+      </li>
+      <li>Preview foto akan muncul dengan info:
+        <ul style="margin:8px 0 0 20px;color:var(--mu);">
+          <li>⏰ Jam foto diambil</li>
+          <li>📍 Koordinat GPS (jika izin diberikan)</li>
+        </ul>
+      </li>
+    </ol>
+
+    <h3>Geolocation di Berbagai Device</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Device</th>
+          <th>Geolocation</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>📱 iPhone/Android dengan GPS</td>
+          <td>✅ Koordinat GPS</td>
+          <td>✅ Selalu ada</td>
+        </tr>
+        <tr>
+          <td>🍎 iPad (WiFi only)</td>
+          <td>⚠️ "Tidak tersedia"</td>
+          <td>✅ Selalu ada</td>
+        </tr>
+        <tr>
+          <td>💻 Desktop/Laptop</td>
+          <td>⚠️ "Tidak tersedia" atau GPS eksternal</td>
+          <td>✅ Selalu ada</td>
+        </tr>
+        <tr>
+          <td>🌐 Browser tanpa izin</td>
+          <td>⚠️ "Izin ditolak"</td>
+          <td>✅ Selalu ada</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>💡 Mengapa Geolocation?</strong><br/>
+      Geolocation dan timestamp membantu mencegah pemalsuan bukti pengeluaran dengan mencatat kapan dan di mana foto diambil.
+    </div>
+  </div>
+
+  <!-- PDF EXPORT -->
+  <div class="section">
+    <h2>📄 Export & Download PDF</h2>
+
+    <h3>Langkah-Langkah Export</h3>
+    <ol class="steps">
+      <li>Buka tab <span style="background:var(--card2);padding:2px 8px;border-radius:4px;">Export</span></li>
+      <li>Lihat daftar semua trip yang ada</li>
+      <li>Klik tombol <span style="background:var(--ok);padding:2px 8px;border-radius:4px;color:#fff;">📄 PDF</span> pada trip yang ingin di-export</li>
+      <li>Tunggu proses generate PDF (2-5 detik)</li>
+      <li>File PDF otomatis ter-download</li>
+    </ol>
+
+    <h3>Isi PDF Laporan</h3>
+    <div class="feature">
+      <strong>Header:</strong> Nama trip, tujuan, nama karyawan, tanggal cetak<br/><br/>
+      <strong>Summary:</strong> Total budget, terpakai, sisa, jumlah item<br/><br/>
+      <strong>Tabel Pengeluaran:</strong> No, tanggal/jam, keterangan, kategori, jumlah<br/><br/>
+      <strong>Bukti Foto:</strong> Foto lengkap + metadata (tanggal, jam, kategori, lokasi jika ada)
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section">
+    <h2>❓ FAQ (Pertanyaan Umum)</h2>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Bagaimana jika saya menambah pengeluaran melebihi budget category?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Aplikasi akan menampilkan warning/alert berisi sisa budget yang masih available. Anda tidak bisa menambah pengeluaran jika melebihi limit. Hubungi atasan untuk approval budget tambahan terlebih dahulu.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Bisa kah saya mengedit pengeluaran yang sudah ditambahkan?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Saat ini fitur edit belum tersedia. Untuk mengubah, Anda bisa hapus pengeluaran (klik ×) dan tambah ulang dengan data yang benar.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Apakah data saya aman? Dikirim ke server?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Sangat aman. Semua data disimpan 100% lokal di device Anda menggunakan browser storage. Tidak ada yang dikirim ke server manapun. Sepenuhnya private dan offline-first.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Bagaimana kalau saya ganti device? Apakah data hilang?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Data tersimpan lokal per device, jadi jika ganti device data akan hilang. Pastikan export PDF sebelum ganti device. Kami sedang mempertimbangkan fitur cloud sync di versi mendatang.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Berapa ukuran limit foto yang bisa di-upload?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Tidak ada limit ukuran file, tapi semakin besar foto maka semakin banyak storage yang terpakai di browser. Rekomendasi: foto biasa (1-5 MB) untuk pengalaman optimal.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Berapa banyak trip yang bisa saya buat?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Tidak ada limit formal, tapi tergantung kapasitas storage browser. Browser modern bisa handle ratusan trip dengan ribuan pengeluaran. Jika mendekati limit, export PDF dan bersihkan data lama.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Bagaimana cara hapus data/reset aplikasi?
+        <span>▼</span>
+      </div>
+      <div class="faq-a">
+        Buka developer tools (F12) → Console → ketik: <code>localStorage.clear()</code> → Enter → Refresh halaman. Data akan hilang semua, jadi pastikan sudah export PDF terlebih dahulu!
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS & TRICKS -->
+  <div class="section">
+    <h2>💡 Tips & Trik</h2>
+
+    <div class="feature">
+      <strong>✅ Gunakan kategori dengan benar</strong><br/>
+      Kategorisasi yang tepat membuat laporan breakdown lebih akurat dan memudahkan verifikasi.
+    </div>
+
+    <div class="feature">
+      <strong>✅ Selalu upload foto bukti</strong><br/>
+      Foto + timestamp + geolocation membuktikan pengeluaran authentic dan sulit dipalsukan.
+    </div>
+
+    <div class="feature">
+      <strong>✅ Update trip hari ini</strong><br/>
+      Jangan menunggu akhir perjalanan. Update pengeluaran setiap hari agar tidak lupa.
+    </div>
+
+    <div class="feature">
+      <strong>✅ Cek progress bar harian</strong><br/>
+      Monitor cap harian (transport & food) untuk menghindari overspending.
+    </div>
+
+    <div class="feature">
+      <strong>✅ Export PDF sebelum ganti device</strong><br/>
+      Jika akan ganti device/clear cache, pastikan sudah download PDF laporan.
+    </div>
+
+    <div class="feature">
+      <strong>✅ Gunakan di mode offline</strong><br/>
+      Aplikasi ini 100% offline. Anda bisa input data tanpa internet di lokasi manapun.
+    </div>
+  </div>
+
+  <!-- TROUBLESHOOTING -->
+  <div class="section">
+    <h2>🔧 Troubleshooting</h2>
+
+    <h3>Geolocation tidak muncul di iPad/Desktop</h3>
+    <p>Ini normal! iPad WiFi dan desktop umumnya tidak punya GPS. Timestamp tetap ter-record. Jika ingin GPS, gunakan smartphone dengan fitur location services aktif.</p>
+
+    <h3>Foto tidak bisa di-upload</h3>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Pastikan browser support file input (semua modern browser support)</li>
+      <li>Cek format file (hanya gambar: JPG, PNG, WebP, dll)</li>
+      <li>Jika file terlalu besar, coba resize atau compress terlebih dahulu</li>
+    </ul>
+
+    <h3>PDF tidak ter-generate</h3>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Tunggu 2-5 detik, proses generate butuh waktu</li>
+      <li>Cek browser console (F12) untuk error message</li>
+      <li>Refresh halaman dan coba lagi</li>
+    </ul>
+
+    <h3>Data hilang setelah close browser</h3>
+    <p>Kemungkinan besar:</p>
+    <ul style="margin-left:20px;color:var(--mu);">
+      <li>Browser history dibersihkan (cache dan cookies terhapus)</li>
+      <li>Mode private/incognito (data tidak tersimpan di mode ini)</li>
+      <li>Storage penuh (clear storage browser untuk space lebih)</li>
+    </ul>
+    <p style="margin-top:12px;"><strong>Solusi:</strong> Export PDF sebelum close browser untuk backup data.</p>
+  </div>
+
+  <div class="footer">
+    <p>✈️ <strong>Expense Dinas Tracker</strong> - Built with ❤️ for Business Travel</p>
+    <p style="margin-top:12px;font-size:12px;">© 2025 • Offline First • Privacy Focused • No Data Stored</p>
+  </div>
+</div>
+
+<script>
+function toggleFaq(el) {
+  const answer = el.nextElementSibling;
+  answer.classList.toggle('show');
+  const icon = el.querySelector('span');
+  icon.style.transform = answer.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0)';
+}
+</script>
+
+</body>
+</html>
