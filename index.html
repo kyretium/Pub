@@ -159,6 +159,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
               <option value="entertainment">🎉 Entertain</option>
               <option value="transport">🚗 Transport Dalam Kota</option>
               <option value="food">🍽️ Food &amp; Beverage</option>
+              <option value="dest_transport">🛣️ Transport ke Tujuan</option>
               <option value="overhead">🚆 Overhead (Train/Car)</option>
             </select>
           </div>
@@ -227,6 +228,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div class="fg"><label class="lbl">Nama Perjalanan *</label><input type="text" id="m-name" placeholder="Dinas Jakarta Juni 2025"/></div>
     <div class="fg"><label class="lbl">Tujuan</label><input type="text" id="m-dest" placeholder="Jakarta"/></div>
     <div class="fg"><label class="lbl">Nama Karyawan</label><input type="text" id="m-emp" placeholder="Nama lengkap"/></div>
+    <div class="row2">
+      <div class="fg"><label class="lbl">Jumlah Staff</label><input type="number" id="m-staff" placeholder="0" min="0" inputmode="numeric"/></div>
+      <div class="fg"><label class="lbl">Jumlah Manager</label><input type="number" id="m-manager" placeholder="0" min="0" inputmode="numeric"/></div>
+    </div>
     <div class="fg"><label class="lbl">Total Budget (Rp) *</label><input type="number" id="m-budget" placeholder="5000000" min="0" inputmode="numeric"/></div>
     <div class="mbtns">
       <button class="btn btn-gh" style="flex:1" id="m-trip-cancel">Batal</button>
@@ -258,17 +263,19 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const CAPS = { transport: 75000, food: 120000 };
+const CAPS = { transport: 75000, food: 120000, dest_transport: 120000 };
 const CATS = {
-  entertainment: { label:'Entertain',           emoji:'🎉', color:'#7c3aed', bg:'rgba(124,58,237,.15)' },
+  entertainment: { label:'Entertain',            emoji:'🎉', color:'#7c3aed', bg:'rgba(124,58,237,.15)' },
   transport:     { label:'Transport Dalam Kota', emoji:'🚗', color:'#4f8ef7', bg:'rgba(79,142,247,.15)' },
   food:          { label:'Food & Beverage',      emoji:'🍽️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+  dest_transport:{ label:'Transport ke Tujuan',  emoji:'🛣️', color:'#ec4899', bg:'rgba(236,72,153,.15)' },
   overhead:      { label:'Overhead (Train/Car)', emoji:'🚆', color:'#10b981', bg:'rgba(16,185,129,.15)' },
 };
 
 let trips = [];
 let activeIdx = -1;
 let photoB64 = null;
+let photoGeo = null;
 let pendingDelTrip = -1, pendingDelId = -1;
 
 try { trips = JSON.parse(localStorage.getItem('exp_trips') || '[]'); } catch(e){}
@@ -304,7 +311,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 
 // ── TRIP MODAL ────────────────────────────────────────────────────────────────
 document.getElementById('btn-new-trip').addEventListener('click', () => {
-  ['m-name','m-dest','m-emp','m-budget'].forEach(id => document.getElementById(id).value = '');
+  ['m-name','m-dest','m-emp','m-budget','m-staff','m-manager'].forEach(id => document.getElementById(id).value = '');
   openModal('m-trip');
   setTimeout(() => document.getElementById('m-name').focus(), 100);
 });
@@ -312,13 +319,16 @@ document.getElementById('m-trip-cancel').addEventListener('click', () => closeMo
 document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
 
 document.getElementById('m-trip-ok').addEventListener('click', () => {
-  const name   = document.getElementById('m-name').value.trim();
-  const dest   = document.getElementById('m-dest').value.trim();
-  const emp    = document.getElementById('m-emp').value.trim();
-  const budget = parseFloat(document.getElementById('m-budget').value);
+  const name    = document.getElementById('m-name').value.trim();
+  const dest    = document.getElementById('m-dest').value.trim();
+  const emp     = document.getElementById('m-emp').value.trim();
+  const staff   = parseInt(document.getElementById('m-staff').value) || 0;
+  const manager = parseInt(document.getElementById('m-manager').value) || 0;
+  const budget  = parseFloat(document.getElementById('m-budget').value);
   if (!name)          { toast('Nama perjalanan wajib diisi.'); return; }
   if (!budget || budget <= 0) { toast('Budget harus lebih dari 0.'); return; }
-  trips.push({ name, dest, employee: emp, budget, expenses: [], created: todayStr() });
+  if (staff === 0 && manager === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
+  trips.push({ name, dest, employee: emp, budget, staff, manager, expenses: [], created: todayStr() });
   activeIdx = trips.length - 1;
   save();
   closeModal('m-trip');
@@ -355,15 +365,34 @@ document.getElementById('photo-inp').addEventListener('change', e => {
   const r = new FileReader();
   r.onload = ev => {
     photoB64 = ev.target.result;
-    document.getElementById('photo-drop').style.display = 'none';
-    document.getElementById('photo-prev').style.display = 'block';
-    document.getElementById('photo-img').src = photoB64;
+    // Capture geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          photoGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+          showPhotoPreview();
+        },
+        err => {
+          photoGeo = null;
+          showPhotoPreview();
+        }
+      );
+    } else {
+      photoGeo = null;
+      showPhotoPreview();
+    }
   };
   r.readAsDataURL(f);
 });
+function showPhotoPreview() {
+  document.getElementById('photo-drop').style.display = 'none';
+  document.getElementById('photo-prev').style.display = 'block';
+  document.getElementById('photo-img').src = photoB64;
+}
 document.getElementById('photo-clr').addEventListener('click', clearPhoto);
 function clearPhoto() {
   photoB64 = null;
+  photoGeo = null;
   document.getElementById('photo-inp').value = '';
   document.getElementById('photo-drop').style.display = '';
   document.getElementById('photo-prev').style.display = 'none';
@@ -381,15 +410,26 @@ function validate(t, cat, amount, date) {
   const spent = t.expenses.reduce((s,e) => s+e.amount, 0);
   const rem   = t.budget - spent;
   if (amount > rem) return `Melebihi sisa budget!\nSisa: ${fmtRp(rem)}`;
+
   if (cat === 'transport') {
+    const engineers = (t.staff || 0) + (t.manager || 0);
+    const cap = CAPS.transport * engineers;
     const daySum = t.expenses.filter(e => e.cat==='transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > CAPS.transport)
-      return `Transport harian melebihi batas ${fmtRp(CAPS.transport)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(CAPS.transport-daySum)}`;
+    if (daySum + amount > cap)
+      return `Transport harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
   }
   if (cat === 'food') {
+    const cap = (t.staff || 0) * 125000 + (t.manager || 0) * 200000;
     const daySum = t.expenses.filter(e => e.cat==='food' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > CAPS.food)
-      return `F&B harian melebihi batas ${fmtRp(CAPS.food)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(CAPS.food-daySum)}`;
+    if (daySum + amount > cap)
+      return `F&B harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
+  }
+  if (cat === 'dest_transport') {
+    const engineers = (t.staff || 0) + (t.manager || 0);
+    const cap = CAPS.dest_transport * engineers;
+    const daySum = t.expenses.filter(e => e.cat==='dest_transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
+    if (daySum + amount > cap)
+      return `Transport tujuan harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
   }
   return null;
 }
@@ -406,7 +446,7 @@ document.getElementById('btn-add').addEventListener('click', () => {
   if (!date)              { toast('Pilih tanggal.'); return; }
   const err = validate(t, cat, amount, date);
   if (err) { toast('⚠️ ' + err); return; }
-  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64 });
+  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo });
   save();
   document.getElementById('i-desc').value = '';
   document.getElementById('i-amt').value  = '';
@@ -453,6 +493,9 @@ function renderBudgetBar() {
   const tod   = todayStr();
   const dTr   = t.expenses.filter(e=>e.cat==='transport'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
   const dFd   = t.expenses.filter(e=>e.cat==='food'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
+  const engineers = (t.staff || 0) + (t.manager || 0);
+  const transportCap = CAPS.transport * engineers;
+  const foodCap = (t.staff || 0) * 125000 + (t.manager || 0) * 200000;
   document.getElementById('bbar').innerHTML = `
     <div class="bcard">
       <div class="brow">
@@ -462,8 +505,8 @@ function renderBudgetBar() {
       <div class="btrack"><div class="bfill ${cls}" style="width:${pct}%"></div></div>
       <div style="font-size:12px;color:var(--mu);text-align:right">${pct}% terpakai · ${fmtRp(spent)}</div>
       <div class="pills">
-        <div class="pill">🚗 Hari ini: <b>${fmtRp(dTr)}</b> / ${fmtRp(CAPS.transport)}</div>
-        <div class="pill">🍽️ Hari ini: <b>${fmtRp(dFd)}</b> / ${fmtRp(CAPS.food)}</div>
+        <div class="pill">🚗 Hari ini: <b>${fmtRp(dTr)}</b> / ${fmtRp(transportCap)}</div>
+        <div class="pill">🍽️ Hari ini: <b>${fmtRp(dFd)}</b> / ${fmtRp(foodCap)}</div>
       </div>
     </div>`;
 }
@@ -471,7 +514,8 @@ function renderBudgetBar() {
 // ── EXPENSE CARD ──────────────────────────────────────────────────────────────
 function eCard(e, ti) {
   const c = CATS[e.cat]||CATS.overhead;
-  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/></div>` : '';
+  const geoInfo = e.geo ? `<div style="font-size:10px;color:var(--mu);margin-top:4px;">📍 ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>` : '';
+  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${geoInfo}</div>` : '';
   return `<div class="eitem">
     <div class="etop">
       <div class="eleft">
@@ -599,7 +643,9 @@ async function exportPDF(ti) {
     if(rn%2===0){doc.setFillColor(248,249,252);doc.rect(M,y-1,W-M*2,9,'F');}
     doc.setTextColor(50,50,50);doc.setFontSize(8);doc.setFont(undefined,'normal');
     doc.text(String(rn),tc[0],y+5);
-    doc.text(fmtDate(e.date),tc[1],y+5);
+    let dateStr = fmtDate(e.date);
+    if(e.geo) dateStr += ' 📍';
+    doc.text(dateStr,tc[1],y+5);
     doc.text(doc.splitTextToSize(e.desc,44)[0],tc[2],y+5);
     doc.text(c.label,tc[3],y+5);
     doc.setFont(undefined,'bold');doc.text(fmtRp(e.amount),tc[4],y+5);
@@ -623,7 +669,9 @@ async function exportPDF(ti) {
       doc.setTextColor(50,50,50);doc.setFontSize(9);doc.setFont(undefined,'bold');
       doc.text(e.desc,M,y);
       doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
-      doc.text(fmtDate(e.date)+' · '+c.label+' · '+fmtRp(e.amount),M,y+5);
+      let metaStr = fmtDate(e.date)+' · '+c.label+' · '+fmtRp(e.amount);
+      if(e.geo) metaStr += ' | 📍 '+e.geo.lat.toFixed(6)+', '+e.geo.lng.toFixed(6);
+      doc.text(metaStr,M,y+5);
       y+=10;
       try{
         doc.addImage(e.proof,'JPEG',M,y,W-M*2,58);y+=66;
