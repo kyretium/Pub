@@ -276,6 +276,7 @@ let trips = [];
 let activeIdx = -1;
 let photoB64 = null;
 let photoGeo = null;
+let photoTime = null;
 let pendingDelTrip = -1, pendingDelId = -1;
 
 try { trips = JSON.parse(localStorage.getItem('exp_trips') || '[]'); } catch(e){}
@@ -365,20 +366,28 @@ document.getElementById('photo-inp').addEventListener('change', e => {
   const r = new FileReader();
   r.onload = ev => {
     photoB64 = ev.target.result;
-    // Capture geolocation
+    // Capture timestamp (always)
+    photoTime = new Date();
+    // Capture geolocation (if available)
     if (navigator.geolocation) {
+      const geoTimeout = setTimeout(() => {
+        photoGeo = { status: 'timeout' };
+        showPhotoPreview();
+      }, 8000);
       navigator.geolocation.getCurrentPosition(
         pos => {
+          clearTimeout(geoTimeout);
           photoGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
           showPhotoPreview();
         },
         err => {
-          photoGeo = null;
+          clearTimeout(geoTimeout);
+          photoGeo = { status: 'denied' };
           showPhotoPreview();
         }
       );
     } else {
-      photoGeo = null;
+      photoGeo = { status: 'unavailable' };
       showPhotoPreview();
     }
   };
@@ -393,6 +402,7 @@ document.getElementById('photo-clr').addEventListener('click', clearPhoto);
 function clearPhoto() {
   photoB64 = null;
   photoGeo = null;
+  photoTime = null;
   document.getElementById('photo-inp').value = '';
   document.getElementById('photo-drop').style.display = '';
   document.getElementById('photo-prev').style.display = 'none';
@@ -446,7 +456,7 @@ document.getElementById('btn-add').addEventListener('click', () => {
   if (!date)              { toast('Pilih tanggal.'); return; }
   const err = validate(t, cat, amount, date);
   if (err) { toast('⚠️ ' + err); return; }
-  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo });
+  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo, photoTime: photoTime ? photoTime.toISOString() : null });
   save();
   document.getElementById('i-desc').value = '';
   document.getElementById('i-amt').value  = '';
@@ -514,8 +524,26 @@ function renderBudgetBar() {
 // ── EXPENSE CARD ──────────────────────────────────────────────────────────────
 function eCard(e, ti) {
   const c = CATS[e.cat]||CATS.overhead;
-  const geoInfo = e.geo ? `<div style="font-size:10px;color:var(--mu);margin-top:4px;">📍 ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>` : '';
-  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${geoInfo}</div>` : '';
+  let proofInfo = '';
+  if (e.proof) {
+    if (e.photoTime) {
+      const pt = new Date(e.photoTime);
+      const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:4px;">⏰ Foto diambil: ${timeStr}</div>`;
+    }
+    if (e.geo) {
+      if (e.geo.lat !== undefined) {
+        proofInfo += `<div style="font-size:10px;color:var(--ok);margin-top:2px;">📍 ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>`;
+      } else if (e.geo.status === 'unavailable') {
+        proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:2px;">📍 Geolocation tidak tersedia di device ini</div>`;
+      } else if (e.geo.status === 'denied') {
+        proofInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Izin geolocation ditolak</div>`;
+      } else if (e.geo.status === 'timeout') {
+        proofInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Geolocation timeout</div>`;
+      }
+    }
+  }
+  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${proofInfo}</div>` : '';
   return `<div class="eitem">
     <div class="etop">
       <div class="eleft">
@@ -644,7 +672,12 @@ async function exportPDF(ti) {
     doc.setTextColor(50,50,50);doc.setFontSize(8);doc.setFont(undefined,'normal');
     doc.text(String(rn),tc[0],y+5);
     let dateStr = fmtDate(e.date);
-    if(e.geo) dateStr += ' 📍';
+    if(e.photoTime) {
+      const pt = new Date(e.photoTime);
+      const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
+      dateStr += ' ' + timeStr;
+    }
+    if(e.geo && e.geo.lat) dateStr += ' 📍';
     doc.text(dateStr,tc[1],y+5);
     doc.text(doc.splitTextToSize(e.desc,44)[0],tc[2],y+5);
     doc.text(c.label,tc[3],y+5);
@@ -670,7 +703,18 @@ async function exportPDF(ti) {
       doc.text(e.desc,M,y);
       doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
       let metaStr = fmtDate(e.date)+' · '+c.label+' · '+fmtRp(e.amount);
-      if(e.geo) metaStr += ' | 📍 '+e.geo.lat.toFixed(6)+', '+e.geo.lng.toFixed(6);
+      if(e.photoTime) {
+        const pt = new Date(e.photoTime);
+        const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        metaStr += ' | ⏰ '+timeStr;
+      }
+      if(e.geo && e.geo.lat) {
+        metaStr += ' | 📍 '+e.geo.lat.toFixed(6)+', '+e.geo.lng.toFixed(6);
+      } else if(e.geo && e.geo.status) {
+        if(e.geo.status === 'unavailable') metaStr += ' | 📍 Geo tidak tersedia';
+        else if(e.geo.status === 'denied') metaStr += ' | 📍 Geo ditolak';
+        else if(e.geo.status === 'timeout') metaStr += ' | 📍 Geo timeout';
+      }
       doc.text(metaStr,M,y+5);
       y+=10;
       try{
