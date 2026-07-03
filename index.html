@@ -415,6 +415,21 @@ document.getElementById('lbox-x').addEventListener('click', closeLbox);
 function openLbox(src) { document.getElementById('lbox-img').src = src; document.getElementById('lbox').classList.add('on'); }
 function closeLbox() { document.getElementById('lbox').classList.remove('on'); }
 
+// ── GEOCODING ──────────────────────────────────────────────────────────────────
+async function reverseGeocode(lat, lng) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+    const data = await response.json();
+    if (data.address) {
+      const addr = data.address;
+      return addr.road || addr.street || addr.city || addr.county || data.name || 'Lokasi terdeteksi';
+    }
+    return 'Lokasi terdeteksi';
+  } catch(e) {
+    return 'Lokasi tidak dapat diterjemahkan';
+  }
+}
+
 // ── VALIDATION ────────────────────────────────────────────────────────────────
 function validate(t, cat, amount, date) {
   const spent = t.expenses.reduce((s,e) => s+e.amount, 0);
@@ -456,7 +471,16 @@ document.getElementById('btn-add').addEventListener('click', () => {
   if (!date)              { toast('Pilih tanggal.'); return; }
   const err = validate(t, cat, amount, date);
   if (err) { toast('⚠️ ' + err); return; }
-  t.expenses.push({ id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo, photoTime: photoTime ? photoTime.toISOString() : null });
+  const expenseObj = { id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo, photoTime: photoTime ? photoTime.toISOString() : null, geoAddr: null };
+  t.expenses.push(expenseObj);
+  // Reverse geocode jika ada geo
+  if (photoGeo && photoGeo.lat) {
+    reverseGeocode(photoGeo.lat, photoGeo.lng).then(addr => {
+      expenseObj.geoAddr = addr;
+      save();
+      renderTodayList(); renderSummary(); renderAll();
+    });
+  }
   save();
   document.getElementById('i-desc').value = '';
   document.getElementById('i-amt').value  = '';
@@ -531,9 +555,12 @@ function eCard(e, ti) {
       const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
       proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:4px;">⏰ Foto diambil: ${timeStr}</div>`;
     }
+    if (e.geoAddr) {
+      proofInfo += `<div style="font-size:10px;color:var(--acc);margin-top:2px;">📍 ${e.geoAddr}</div>`;
+    }
     if (e.geo) {
       if (e.geo.lat !== undefined) {
-        proofInfo += `<div style="font-size:10px;color:var(--ok);margin-top:2px;">📍 ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>`;
+        proofInfo += `<div style="font-size:9px;color:var(--mu);margin-top:2px;">Koordinat: ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>`;
       } else if (e.geo.status === 'unavailable') {
         proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:2px;">📍 Geolocation tidak tersedia di device ini</div>`;
       } else if (e.geo.status === 'denied') {
@@ -577,6 +604,34 @@ function renderSummary() {
     const rem   = t.budget - spent;
     const pct   = Math.min(100,Math.round(spent/t.budget*100));
     const cls   = pct<70?'chip-ok':pct<90?'chip-wn':'chip-ov';
+
+    // Breakdown per hari
+    const dayMap = {};
+    t.expenses.forEach(e => {
+      if (!dayMap[e.date]) dayMap[e.date] = { total: 0, items: [] };
+      dayMap[e.date].total += e.amount;
+      dayMap[e.date].items.push(e);
+    });
+
+    const dayBreakdown = Object.entries(dayMap).sort((a,b)=>b[0].localeCompare(a[0])).map(([date, data]) => {
+      const dayBudget = t.budget / Math.max(Object.keys(dayMap).length, 1);
+      const dayRem = dayBudget - data.total;
+      const dayPct = Math.min(100, Math.round(data.total/dayBudget*100));
+      const dayClass = dayPct<70?'ok':dayPct<90?'wn':'ov';
+      return `<div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:600;font-size:14px;">${fmtDate(date)}</div>
+          <div style="font-size:12px;color:var(--mu)">${data.items.length} item</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Terpakai</div><div style="font-weight:600;color:var(--acc)">${fmtRp(data.total)}</div></div>
+          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Sisa</div><div style="font-weight:600;color:${dayRem<0?'var(--err)':'var(--ok)'}">${fmtRp(dayRem)}</div></div>
+        </div>
+        <div class="btrack"><div class="bfill ${dayClass}" style="width:${dayPct}%"></div></div>
+        <div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px;">${dayPct}% dari ${fmtRp(dayBudget)}</div>
+      </div>`;
+    }).join('');
+
     const catMap= {};
     t.expenses.forEach(e=>{ catMap[e.cat]=(catMap[e.cat]||0)+e.amount; });
     const bars = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>{
@@ -584,6 +639,7 @@ function renderSummary() {
       const p=spent>0?Math.round(amt/spent*100):0;
       return `<div class="crow"><div class="crhd"><span>${c.emoji} ${c.label}</span><span>${fmtRp(amt)} <span style="color:var(--mu);font-size:11px">${p}%</span></span></div><div class="btrack2"><div class="bfill2" style="width:${p}%;background:${c.color}"></div></div></div>`;
     }).join('');
+
     return `<div class="fcard" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div><div style="font-size:15px;font-weight:700">${t.name}</div><div style="font-size:12px;color:var(--mu)">${t.dest||''}${t.employee?' · '+t.employee:''}</div></div>
@@ -593,10 +649,13 @@ function renderSummary() {
         <div class="sc"><div class="sl">Budget</div><div class="sv" style="font-size:14px">${fmtRp(t.budget)}</div></div>
         <div class="sc"><div class="sl">Terpakai</div><div class="sv" style="font-size:14px;color:var(--acc)">${fmtRp(spent)}</div></div>
         <div class="sc"><div class="sl">Sisa</div><div class="sv" style="font-size:14px;color:${rem<0?'var(--err)':'var(--ok)'}">${fmtRp(rem)}</div></div>
-        <div class="sc"><div class="sl">Items</div><div class="sv">${t.expenses.length}</div></div>
+        <div class="sc"><div class="sl">Hari</div><div class="sv">${Object.keys(dayMap).length}</div></div>
       </div>
       <div class="div"></div>
-      <div class="stitle" style="margin-bottom:10px">Breakdown</div>
+      <div class="stitle" style="margin-bottom:10px">Pengeluaran Per Hari</div>
+      ${dayBreakdown||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
+      <div class="div"></div>
+      <div class="stitle" style="margin-bottom:10px">Breakdown Kategori</div>
       ${bars||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
     </div>`;
   }).join('');
@@ -708,7 +767,9 @@ async function exportPDF(ti) {
         const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
         metaStr += ' | ⏰ '+timeStr;
       }
-      if(e.geo && e.geo.lat) {
+      if(e.geoAddr) {
+        metaStr += ' | 📍 '+e.geoAddr;
+      } else if(e.geo && e.geo.lat) {
         metaStr += ' | 📍 '+e.geo.lat.toFixed(6)+', '+e.geo.lng.toFixed(6);
       } else if(e.geo && e.geo.status) {
         if(e.geo.status === 'unavailable') metaStr += ' | 📍 Geo tidak tersedia';
