@@ -496,12 +496,7 @@ function validate(t, cat, amount, date) {
     if (daySum + amount > dayBudget)
       return `F&B harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
-  if (cat === 'dest_transport') {
-    const dayBudget = catBudget / Math.max(t.days || 1, 1);
-    const daySum = t.expenses.filter(e => e.cat==='dest_transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > dayBudget)
-      return `Transport tujuan harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
-  }
+  // Transport ke tujuan: tidak ada validasi harian (biaya satu kali, seperti tiket)
   return null;
 }
 
@@ -573,8 +568,8 @@ function renderBudgetBar() {
   const pct   = Math.min(100, Math.round(spent/totalBudget*100));
   const cls   = pct<70?'ok':pct<90?'wn':'ov';
 
-  // Per kategori
-  const cats = ['transport', 'food', 'dest_transport'];
+  // Per kategori (hanya transport & food yang ada budget harian)
+  const cats = ['transport', 'food'];
   const catPills = cats.map(cat => {
     const catBudget = t.budgets && t.budgets[cat] ? t.budgets[cat] : 0;
     const dayBudget = catBudget / Math.max(t.days || 1, 1);
@@ -666,11 +661,15 @@ function renderSummary() {
       const catRem = budget - catSpent;
       const catPct = Math.min(100, Math.round(catSpent/budget*100));
       const catClass = catPct<70?'ok':catPct<90?'wn':'ov';
-      const dayBudget = budget / Math.max(t.days || 1, 1);
+
+      // Hanya transport & food yang punya budget harian
+      const isDailyBudget = cat === 'transport' || cat === 'food';
+      const dayBudget = isDailyBudget ? budget / Math.max(t.days || 1, 1) : null;
+
       return `<div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div style="font-weight:600;font-size:14px;">${c.emoji} ${c.label}</div>
-          <div style="font-size:12px;color:var(--mu)">Hari: ${fmtRp(dayBudget)}</div>
+          <div style="font-size:12px;color:var(--mu)">${isDailyBudget ? 'Hari: '+fmtRp(dayBudget) : 'Total'}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
           <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Budget</div><div style="font-weight:600;color:var(--tx)">${fmtRp(budget)}</div></div>
