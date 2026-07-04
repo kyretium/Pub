@@ -232,7 +232,18 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
       <div class="fg"><label class="lbl">Jumlah Staff</label><input type="number" id="m-staff" placeholder="0" min="0" inputmode="numeric"/></div>
       <div class="fg"><label class="lbl">Jumlah Manager</label><input type="number" id="m-manager" placeholder="0" min="0" inputmode="numeric"/></div>
     </div>
-    <div class="fg"><label class="lbl">Total Budget (Rp) *</label><input type="number" id="m-budget" placeholder="5000000" min="0" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">Jumlah Hari Dinas *</label><input type="number" id="m-days" placeholder="3" min="1" inputmode="numeric"/></div>
+    <div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:13px;font-size:12px;color:var(--mu);">
+      <strong style="color:var(--tx);">Budget Per Kategori (Total)</strong>
+    </div>
+    <div class="fg"><label class="lbl">🚗 Transport Dalam Kota (Rp) *</label><input type="number" id="m-budget-transport" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">🍽️ Food & Beverage (Rp) *</label><input type="number" id="m-budget-food" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">🛣️ Transport ke Tujuan (Rp) *</label><input type="number" id="m-budget-dest" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">🚆 Overhead (Rp)</label><input type="number" id="m-budget-overhead" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div class="fg"><label class="lbl">🎉 Entertain (Rp)</label><input type="number" id="m-budget-entertain" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div style="background:rgba(79,142,247,0.1);padding:12px;border-radius:8px;margin-bottom:13px;font-size:12px;color:var(--acc);border-left:3px solid var(--acc);">
+      <strong style="color:var(--tx);">Total:</strong> <span id="m-total-budget">Rp 0</span>
+    </div>
     <div class="mbtns">
       <button class="btn btn-gh" style="flex:1" id="m-trip-cancel">Batal</button>
       <button class="btn btn-acc" style="flex:2" id="m-trip-ok">Buat Trip</button>
@@ -312,9 +323,23 @@ function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 
 // ── TRIP MODAL ────────────────────────────────────────────────────────────────
 document.getElementById('btn-new-trip').addEventListener('click', () => {
-  ['m-name','m-dest','m-emp','m-budget','m-staff','m-manager'].forEach(id => document.getElementById(id).value = '');
+  ['m-name','m-dest','m-emp','m-staff','m-manager','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-total-budget').textContent = 'Rp 0';
   openModal('m-trip');
   setTimeout(() => document.getElementById('m-name').focus(), 100);
+});
+
+// Budget auto-calculation
+['m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const transport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
+    const food = parseFloat(document.getElementById('m-budget-food').value) || 0;
+    const dest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
+    const overhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
+    const entertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+    const total = transport + food + dest + overhead + entertain;
+    document.getElementById('m-total-budget').textContent = 'Rp ' + Math.round(total).toLocaleString('id-ID');
+  });
 });
 document.getElementById('m-trip-cancel').addEventListener('click', () => closeModal('m-trip'));
 document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
@@ -325,11 +350,25 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   const emp     = document.getElementById('m-emp').value.trim();
   const staff   = parseInt(document.getElementById('m-staff').value) || 0;
   const manager = parseInt(document.getElementById('m-manager').value) || 0;
-  const budget  = parseFloat(document.getElementById('m-budget').value);
-  if (!name)          { toast('Nama perjalanan wajib diisi.'); return; }
-  if (!budget || budget <= 0) { toast('Budget harus lebih dari 0.'); return; }
+  const days    = parseInt(document.getElementById('m-days').value);
+  const bTransport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
+  const bFood = parseFloat(document.getElementById('m-budget-food').value) || 0;
+  const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
+  const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
+  const bEntertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+  const totalBudget = bTransport + bFood + bDest + bOverhead + bEntertain;
+
+  if (!name) { toast('Nama perjalanan wajib diisi.'); return; }
+  if (!days || days <= 0) { toast('Jumlah hari harus lebih dari 0.'); return; }
   if (staff === 0 && manager === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
-  trips.push({ name, dest, employee: emp, budget, staff, manager, expenses: [], created: todayStr() });
+  if (totalBudget <= 0) { toast('Minimal ada 1 kategori budget yang diisi.'); return; }
+
+  trips.push({
+    name, dest, employee: emp, staff, manager, days,
+    budgets: { transport: bTransport, food: bFood, dest_transport: bDest, overhead: bOverhead, entertainment: bEntertain },
+    expenses: [],
+    created: todayStr()
+  });
   activeIdx = trips.length - 1;
   save();
   closeModal('m-trip');
@@ -432,29 +471,30 @@ async function reverseGeocode(lat, lng) {
 
 // ── VALIDATION ────────────────────────────────────────────────────────────────
 function validate(t, cat, amount, date) {
-  const spent = t.expenses.reduce((s,e) => s+e.amount, 0);
-  const rem   = t.budget - spent;
-  if (amount > rem) return `Melebihi sisa budget!\nSisa: ${fmtRp(rem)}`;
+  const catBudget = t.budgets && t.budgets[cat] ? t.budgets[cat] : 0;
+  const catSpent = t.expenses.filter(e => e.cat === cat).reduce((s,e) => s+e.amount, 0);
+  const catRem = catBudget - catSpent;
+
+  if (amount > catRem) return `Budget kategori ${CATS[cat].label} tidak cukup!\nBudget: ${fmtRp(catBudget)}, Terpakai: ${fmtRp(catSpent)}, Sisa: ${fmtRp(catRem)}`;
 
   if (cat === 'transport') {
     const engineers = (t.staff || 0) + (t.manager || 0);
-    const cap = CAPS.transport * engineers;
+    const dayBudget = catBudget / Math.max(t.days || 1, 1);
     const daySum = t.expenses.filter(e => e.cat==='transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > cap)
-      return `Transport harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
+    if (daySum + amount > dayBudget)
+      return `Transport harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
   if (cat === 'food') {
-    const cap = (t.staff || 0) * 125000 + (t.manager || 0) * 200000;
+    const dayBudget = catBudget / Math.max(t.days || 1, 1);
     const daySum = t.expenses.filter(e => e.cat==='food' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > cap)
-      return `F&B harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
+    if (daySum + amount > dayBudget)
+      return `F&B harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
   if (cat === 'dest_transport') {
-    const engineers = (t.staff || 0) + (t.manager || 0);
-    const cap = CAPS.dest_transport * engineers;
+    const dayBudget = catBudget / Math.max(t.days || 1, 1);
     const daySum = t.expenses.filter(e => e.cat==='dest_transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
-    if (daySum + amount > cap)
-      return `Transport tujuan harian melebihi batas ${fmtRp(cap)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(cap-daySum)}`;
+    if (daySum + amount > dayBudget)
+      return `Transport tujuan harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
   return null;
 }
@@ -520,27 +560,33 @@ function updateBadge() {
 // ── BUDGET BAR ────────────────────────────────────────────────────────────────
 function renderBudgetBar() {
   const t = trip(); if (!t) return;
-  const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
-  const rem   = t.budget - spent;
-  const pct   = Math.min(100, Math.round(spent/t.budget*100));
-  const cls   = pct<70?'ok':pct<90?'wn':'ov';
   const tod   = todayStr();
-  const dTr   = t.expenses.filter(e=>e.cat==='transport'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
-  const dFd   = t.expenses.filter(e=>e.cat==='food'&&e.date===tod).reduce((s,e)=>s+e.amount,0);
-  const engineers = (t.staff || 0) + (t.manager || 0);
-  const transportCap = CAPS.transport * engineers;
-  const foodCap = (t.staff || 0) * 125000 + (t.manager || 0) * 200000;
+  const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
+  const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
+  const rem   = totalBudget - spent;
+  const pct   = Math.min(100, Math.round(spent/totalBudget*100));
+  const cls   = pct<70?'ok':pct<90?'wn':'ov';
+
+  // Per kategori
+  const cats = ['transport', 'food', 'dest_transport'];
+  const catPills = cats.map(cat => {
+    const catBudget = t.budgets && t.budgets[cat] ? t.budgets[cat] : 0;
+    const dayBudget = catBudget / Math.max(t.days || 1, 1);
+    const daySpent = t.expenses.filter(e=>e.cat===cat&&e.date===tod).reduce((s,e)=>s+e.amount,0);
+    const c = CATS[cat];
+    return `<div class="pill">${c.emoji} Hari ini: <b>${fmtRp(daySpent)}</b> / ${fmtRp(dayBudget)}</div>`;
+  }).join('');
+
   document.getElementById('bbar').innerHTML = `
     <div class="bcard">
       <div class="brow">
-        <div><div class="blbl">Total Budget</div><div class="bval">${fmtRp(t.budget)}</div></div>
+        <div><div class="blbl">Total Budget</div><div class="bval">${fmtRp(totalBudget)}</div></div>
         <div style="text-align:right"><div class="blbl">Sisa</div><div class="bval" style="color:${rem<0?'var(--err)':'var(--ok)'}">${fmtRp(rem)}</div></div>
       </div>
       <div class="btrack"><div class="bfill ${cls}" style="width:${pct}%"></div></div>
       <div style="font-size:12px;color:var(--mu);text-align:right">${pct}% terpakai · ${fmtRp(spent)}</div>
       <div class="pills">
-        <div class="pill">🚗 Hari ini: <b>${fmtRp(dTr)}</b> / ${fmtRp(transportCap)}</div>
-        <div class="pill">🍽️ Hari ini: <b>${fmtRp(dFd)}</b> / ${fmtRp(foodCap)}</div>
+        ${catPills}
       </div>
     </div>`;
 }
@@ -600,44 +646,33 @@ function renderSummary() {
   const el = document.getElementById('summary-body');
   if (!trips.length) { el.innerHTML='<div class="empty"><div class="ei">📊</div><p>Belum ada trip.</p></div>'; return; }
   el.innerHTML = trips.map((t,ti) => {
+    const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
     const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
-    const rem   = t.budget - spent;
-    const pct   = Math.min(100,Math.round(spent/t.budget*100));
+    const rem   = totalBudget - spent;
+    const pct   = Math.min(100,Math.round(spent/totalBudget*100));
     const cls   = pct<70?'chip-ok':pct<90?'chip-wn':'chip-ov';
 
-    // Breakdown per hari
-    const dayMap = {};
-    t.expenses.forEach(e => {
-      if (!dayMap[e.date]) dayMap[e.date] = { total: 0, items: [] };
-      dayMap[e.date].total += e.amount;
-      dayMap[e.date].items.push(e);
-    });
-
-    const dayBreakdown = Object.entries(dayMap).sort((a,b)=>b[0].localeCompare(a[0])).map(([date, data]) => {
-      const dayBudget = t.budget / Math.max(Object.keys(dayMap).length, 1);
-      const dayRem = dayBudget - data.total;
-      const dayPct = Math.min(100, Math.round(data.total/dayBudget*100));
-      const dayClass = dayPct<70?'ok':dayPct<90?'wn':'ov';
+    // Breakdown per kategori dengan budget
+    const catBreakdown = Object.entries(t.budgets || {}).map(([cat, budget]) => {
+      if (budget <= 0) return '';
+      const c = CATS[cat] || CATS.overhead;
+      const catSpent = t.expenses.filter(e => e.cat === cat).reduce((s,e)=>s+e.amount,0);
+      const catRem = budget - catSpent;
+      const catPct = Math.min(100, Math.round(catSpent/budget*100));
+      const catClass = catPct<70?'ok':catPct<90?'wn':'ov';
+      const dayBudget = budget / Math.max(t.days || 1, 1);
       return `<div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:600;font-size:14px;">${fmtDate(date)}</div>
-          <div style="font-size:12px;color:var(--mu)">${data.items.length} item</div>
+          <div style="font-weight:600;font-size:14px;">${c.emoji} ${c.label}</div>
+          <div style="font-size:12px;color:var(--mu)">Hari: ${fmtRp(dayBudget)}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
-          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Terpakai</div><div style="font-weight:600;color:var(--acc)">${fmtRp(data.total)}</div></div>
-          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Sisa</div><div style="font-weight:600;color:${dayRem<0?'var(--err)':'var(--ok)'}">${fmtRp(dayRem)}</div></div>
+          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Budget</div><div style="font-weight:600;color:var(--tx)">${fmtRp(budget)}</div></div>
+          <div><div style="font-size:11px;color:var(--mu);margin-bottom:2px;">Terpakai</div><div style="font-weight:600;color:var(--acc)">${fmtRp(catSpent)}</div></div>
         </div>
-        <div class="btrack"><div class="bfill ${dayClass}" style="width:${dayPct}%"></div></div>
-        <div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px;">${dayPct}% dari ${fmtRp(dayBudget)}</div>
+        <div class="btrack"><div class="bfill ${catClass}" style="width:${catPct}%"></div></div>
+        <div style="font-size:11px;color:var(--mu);text-align:right;margin-top:4px;">Sisa: ${fmtRp(catRem)} (${catPct}%)</div>
       </div>`;
-    }).join('');
-
-    const catMap= {};
-    t.expenses.forEach(e=>{ catMap[e.cat]=(catMap[e.cat]||0)+e.amount; });
-    const bars = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>{
-      const c=CATS[cat]||CATS.overhead;
-      const p=spent>0?Math.round(amt/spent*100):0;
-      return `<div class="crow"><div class="crhd"><span>${c.emoji} ${c.label}</span><span>${fmtRp(amt)} <span style="color:var(--mu);font-size:11px">${p}%</span></span></div><div class="btrack2"><div class="bfill2" style="width:${p}%;background:${c.color}"></div></div></div>`;
     }).join('');
 
     return `<div class="fcard" style="margin-bottom:14px">
@@ -646,17 +681,14 @@ function renderSummary() {
         <span class="chip ${cls}">${pct}%</span>
       </div>
       <div class="sgrid">
-        <div class="sc"><div class="sl">Budget</div><div class="sv" style="font-size:14px">${fmtRp(t.budget)}</div></div>
+        <div class="sc"><div class="sl">Total Budget</div><div class="sv" style="font-size:14px">${fmtRp(totalBudget)}</div></div>
         <div class="sc"><div class="sl">Terpakai</div><div class="sv" style="font-size:14px;color:var(--acc)">${fmtRp(spent)}</div></div>
         <div class="sc"><div class="sl">Sisa</div><div class="sv" style="font-size:14px;color:${rem<0?'var(--err)':'var(--ok)'}">${fmtRp(rem)}</div></div>
-        <div class="sc"><div class="sl">Hari</div><div class="sv">${Object.keys(dayMap).length}</div></div>
+        <div class="sc"><div class="sl">Hari</div><div class="sv">${t.days || '-'}</div></div>
       </div>
       <div class="div"></div>
-      <div class="stitle" style="margin-bottom:10px">Pengeluaran Per Hari</div>
-      ${dayBreakdown||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
-      <div class="div"></div>
-      <div class="stitle" style="margin-bottom:10px">Breakdown Kategori</div>
-      ${bars||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
+      <div class="stitle" style="margin-bottom:10px">Budget Per Kategori</div>
+      ${catBreakdown||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
     </div>`;
   }).join('');
 }
