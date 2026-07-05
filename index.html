@@ -408,26 +408,28 @@ function updatePhotoCapacity() {
   }, 0);
 
   const storageAvailable = 5 * 1024 * 1024 - getStorageSize();
-  const avgPhotoSize = photosSize > 0 ? Math.round(photosSize / photosInTrip) : 350000; // default 350KB
+  // Dengan aggressive compression (quality 0.6, resize 800px): ~200-250KB per foto
+  const avgPhotoSize = photosSize > 0 ? Math.round(photosSize / photosInTrip) : 225000; // default 225KB
   const estimatedPhotosCanAdd = Math.max(0, Math.floor(storageAvailable / avgPhotoSize));
 
   const el = document.getElementById('photo-capacity');
   if (!el) return;
 
-  const remaining = Math.max(0, 20 - photosInTrip); // max ~20 photos realistic limit
+  const MAX_PHOTOS = 40; // Support 30-40 foto per trip dengan aggressive compression
+  const remaining = Math.max(0, MAX_PHOTOS - photosInTrip);
   const capacity = Math.min(estimatedPhotosCanAdd, remaining);
 
   if (photosInTrip === 0) {
     el.style.display = 'none';
   } else {
     el.style.display = 'block';
-    const percent = Math.round((photosInTrip / 20) * 100);
-    const status = capacity <= 0 ? '⚠️ Storage penuh!' : capacity <= 2 ? '⚠️ Sisa ' + capacity + ' foto' : `✓ Sisa ${capacity} foto`;
-    el.innerHTML = `📸 ${photosInTrip}/20 foto · ${status}`;
+    const percent = Math.round((photosInTrip / MAX_PHOTOS) * 100);
+    const status = capacity <= 0 ? '⚠️ Storage penuh!' : capacity <= 3 ? `⚠️ Sisa ${capacity} foto` : `✓ Sisa ${capacity} foto`;
+    el.innerHTML = `📸 ${photosInTrip}/${MAX_PHOTOS} foto · ${status}`;
 
     if (capacity <= 0) {
       el.style.color = '#ef4444';
-    } else if (capacity <= 2) {
+    } else if (capacity <= 3) {
       el.style.color = '#f59e0b';
     } else {
       el.style.color = '#10b981';
@@ -560,8 +562,8 @@ function compressImage(dataUrl) {
       let width = img.width;
       let height = img.height;
 
-      // Resize jika lebih besar dari 1200px
-      const maxSize = 1200;
+      // Aggressive resize untuk support lebih banyak foto: max 800px
+      const maxSize = 800;
       if (width > maxSize || height > maxSize) {
         const ratio = Math.min(maxSize / width, maxSize / height);
         width = Math.round(width * ratio);
@@ -573,8 +575,8 @@ function compressImage(dataUrl) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Compress dengan quality 0.7
-      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      // Aggressive compression: quality 0.6 (60%) untuk save 60% ukuran
+      const compressed = canvas.toDataURL('image/jpeg', 0.6);
       const originalSize = dataUrl.length;
       const compressedSize = compressed.length;
       const saved = Math.round(((originalSize - compressedSize) / originalSize) * 100);
@@ -1271,6 +1273,7 @@ function renderHistory() {
     return;
   }
 
+  html += '<div style="font-size:12px;color:var(--mu);margin-bottom:12px">💡 Dengan aggressive compression: 30-40 foto per trip</div>';
   html += '<div class="elist">';
   trips.forEach((t, i) => {
     const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
