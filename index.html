@@ -827,7 +827,8 @@ async function exportPDF(ti) {
   doc.setFillColor(245,247,250);doc.rect(M,y,W-M*2,28,'F');
   const cs=[M+2,68,118,162];
   const lbs=['Total Budget','Terpakai','Sisa Budget','Jumlah Item'];
-  const vs=[fmtRp(t.budget),fmtRp(spent),fmtRp(rem),t.expenses.length+' item'];
+  const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
+  const vs=[fmtRp(totalBudget),fmtRp(spent),fmtRp(rem),t.expenses.length+' item'];
   lbs.forEach((l,i)=>{doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(120,120,120);doc.text(l,cs[i],y+8);});
   vs.forEach((v,i)=>{doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,30,30);doc.text(String(v),cs[i],y+18);});
   y+=34;
@@ -856,7 +857,31 @@ async function exportPDF(ti) {
     doc.text(c.label,tc[3],y+5);
     doc.setFont(undefined,'bold');doc.text(fmtRp(e.amount),tc[4],y+5);
     doc.setFont(undefined,'normal');
-    y+=9;rn++;
+    y+=9;
+
+    // Tambahkan geolocation detail di bawah row
+    if(e.geo) {
+      let geoStr = '';
+      if(e.geoAddr) {
+        geoStr += e.geoAddr;
+      }
+      if(e.geo.lat) {
+        if(geoStr) geoStr += ' | ';
+        geoStr += e.geo.lat.toFixed(6)+', '+e.geo.lng.toFixed(6);
+        if(e.geo.acc) geoStr += ' (akurasi: '+Math.round(e.geo.acc)+'m)';
+      } else if(e.geo.status) {
+        if(geoStr) geoStr += ' | ';
+        if(e.geo.status === 'unavailable') geoStr += 'Geo tidak tersedia';
+        else if(e.geo.status === 'denied') geoStr += 'Geo ditolak';
+        else if(e.geo.status === 'timeout') geoStr += 'Geo timeout';
+      }
+      if(geoStr) {
+        doc.setTextColor(120,120,120);doc.setFontSize(7);
+        doc.text('📍 '+geoStr, M+2, y+2);
+        y+=4;
+      }
+    }
+    rn++;
   }
   doc.setFillColor(26,26,46);doc.rect(M,y,W-M*2,9,'F');
   doc.setTextColor(255,255,255);doc.setFont(undefined,'bold');doc.setFontSize(9);
