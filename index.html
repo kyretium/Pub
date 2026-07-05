@@ -205,6 +205,15 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
       </div>
     </div>
 
+    <!-- TAB HISTORY -->
+    <div id="tab-history" class="tab-view">
+      <div class="fcard">
+        <div class="stitle">History Dinas</div>
+        <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Semua trip + pengeluaran dapat di-backup & restore.</p>
+        <div id="history-list"></div>
+      </div>
+    </div>
+
   </div>
 
   <nav class="bot-nav">
@@ -219,6 +228,9 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     </button>
     <button class="nv" id="nv-export" onclick="goTab('export')">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Export
+    </button>
+    <button class="nv" id="nv-history" onclick="goTab('history')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History
     </button>
   </nav>
 </div>
@@ -274,6 +286,28 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
   </div>
 </div>
 
+<!-- Import Backup Modal -->
+<div class="mover" id="m-import">
+  <div class="mbox">
+    <h2>Import Backup</h2>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:14px;">Pilih file JSON backup untuk restore ke device ini.</p>
+    <div class="photo-drop" id="import-drop">
+      <input type="file" id="import-inp" accept=".json" style="display:none"/>
+      <div style="font-size:28px">📁</div>
+      <p>Ketuk untuk pilih backup file</p>
+    </div>
+    <div id="import-preview" style="margin-top:14px;display:none;background:var(--card);padding:12px;border-radius:8px;font-size:12px;">
+      <div><strong>Trip:</strong> <span id="import-trip-name"></span></div>
+      <div><strong>Pengeluaran:</strong> <span id="import-expense-count"></span> item</div>
+      <div><strong>Foto:</strong> <span id="import-photo-count"></span> foto</div>
+    </div>
+    <div class="mbtns">
+      <button class="btn btn-gh" style="flex:1" id="m-import-cancel">Batal</button>
+      <button class="btn btn-ok" style="flex:1" id="m-import-ok" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
 <!-- Image Lightbox -->
 <div class="lbox" id="lbox">
   <button class="lbox-x" id="lbox-x">×</button>
@@ -300,7 +334,7 @@ let photoB64 = null;
 let photoGeo = null;
 let photoTime = null;
 let currentGeo = null;
-let pendingDelTrip = -1, pendingDelId = -1;
+let pendingDelTrip = -1, pendingDelId = -1, pendingDelMode = 'expense'; // 'expense' or 'trip'
 
 // Capture geolocation saat load (background)
 if (navigator.geolocation) {
@@ -425,18 +459,37 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
 // ── CONFIRM DELETE MODAL ──────────────────────────────────────────────────────
 document.getElementById('m-confirm-no').addEventListener('click', () => closeModal('m-confirm'));
 document.getElementById('m-confirm-yes').addEventListener('click', () => {
-  if (pendingDelTrip >= 0 && pendingDelId >= 0) {
+  if (pendingDelMode === 'expense' && pendingDelTrip >= 0 && pendingDelId >= 0) {
     trips[pendingDelTrip].expenses = trips[pendingDelTrip].expenses.filter(e => e.id !== pendingDelId);
     save();
     renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
     toast('Dihapus.', 'ok');
+  } else if (pendingDelMode === 'trip' && pendingDelTrip >= 0) {
+    trips.splice(pendingDelTrip, 1);
+    if (activeIdx === pendingDelTrip) activeIdx = -1;
+    if (activeIdx > pendingDelTrip) activeIdx--;
+    save();
+    refreshTripSel();
+    updateBadge();
+    showTripBody(false);
+    renderHistory();
+    renderExport();
+    toast('Trip dihapus.', 'ok');
   }
   closeModal('m-confirm');
 });
 
 function askDelete(ti, id, desc) {
   pendingDelTrip = ti; pendingDelId = id;
+  pendingDelMode = 'expense';
   document.getElementById('m-confirm-desc').textContent = '"' + desc + '"';
+  openModal('m-confirm');
+}
+
+function askDeleteTrip(ti, name) {
+  pendingDelTrip = ti;
+  pendingDelMode = 'trip';
+  document.getElementById('m-confirm-desc').textContent = 'Hapus trip: "' + name + '" dan semua pengeluarannya?';
   openModal('m-confirm');
 }
 
@@ -793,13 +846,25 @@ function renderAll() {
 // ── EXPORT TAB ────────────────────────────────────────────────────────────────
 function renderExport() {
   const el = document.getElementById('export-list');
-  if (!trips.length) { el.innerHTML='<p style="color:var(--mu);font-size:13px">Belum ada trip.</p>'; return; }
-  el.innerHTML = trips.map((t,i)=>`
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <button class="btn btn-acc btn-full" onclick="openModal('m-import')">📥 Import Backup</button>
+    </div>
+  `;
+
+  if (!trips.length) { el.innerHTML=html+'<p style="color:var(--mu);font-size:13px">Belum ada trip.</p>'; return; }
+
+  html += trips.map((t,i)=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--bd)">
       <div><div style="font-size:14px;font-weight:600">${t.name}</div>
       <div style="font-size:12px;color:var(--mu)">${t.expenses.length} item · ${fmtRp(t.expenses.reduce((s,e)=>s+e.amount,0))}</div></div>
-      <button class="btn btn-ok btn-sm" onclick="exportPDF(${i})">📄 PDF</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ok btn-sm" onclick="exportPDF(${i})">📄 PDF</button>
+        <button class="btn btn-gh btn-sm" onclick="exportTrip(${i})">📋 JSON</button>
+      </div>
     </div>`).join('');
+
+  el.innerHTML = html;
 }
 
 // ── PDF EXPORT ────────────────────────────────────────────────────────────────
@@ -933,6 +998,158 @@ async function exportPDF(ti) {
   toast('✓ PDF berhasil didownload!','ok');
 }
 
+// ── EXPORT/IMPORT BACKUP ──────────────────────────────────────────────────────
+function exportTrip(idx) {
+  const t = trips[idx];
+  if (!t) return;
+
+  const backup = {
+    version: 1,
+    exportDate: new Date().toISOString(),
+    trip: {
+      name: t.name,
+      dest: t.dest,
+      employee: t.employee,
+      staff: t.staff,
+      manager: t.manager,
+      days: t.days,
+      budgets: t.budgets,
+      created: t.created
+    },
+    expenses: t.expenses
+  };
+
+  const jsonStr = JSON.stringify(backup, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_${t.name.replace(/\s+/g,'_')}_${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✓ Backup berhasil didownload!', 'ok');
+}
+
+let pendingImportData = null;
+
+document.getElementById('import-drop').addEventListener('click', () => {
+  document.getElementById('import-inp').click();
+});
+
+document.getElementById('import-inp').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.trip || !data.expenses) {
+        toast('⚠️ Format file tidak valid');
+        return;
+      }
+
+      pendingImportData = data;
+      document.getElementById('import-preview').style.display = 'block';
+      document.getElementById('import-trip-name').textContent = data.trip.name;
+      document.getElementById('import-expense-count').textContent = data.expenses.length;
+      document.getElementById('import-photo-count').textContent = data.expenses.filter(e=>e.proof).length;
+      document.getElementById('m-import-ok').disabled = false;
+    } catch(err) {
+      toast('⚠️ Gagal membaca file: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+});
+
+document.getElementById('m-import-ok').addEventListener('click', () => {
+  if (!pendingImportData) return;
+
+  const data = pendingImportData;
+  const newTrip = {
+    ...data.trip,
+    expenses: data.expenses,
+    created: data.trip.created || new Date().toISOString()
+  };
+
+  trips.push(newTrip);
+  activeIdx = trips.length - 1;
+  save();
+
+  document.getElementById('import-inp').value = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('m-import-ok').disabled = true;
+  pendingImportData = null;
+
+  closeModal('m-import');
+  refreshTripSel();
+  updateBadge();
+  showTripBody(true);
+  renderBudgetBar();
+  renderTodayList();
+  renderSummary();
+  renderAll();
+  renderExport();
+  renderHistory();
+
+  toast('✓ Backup berhasil di-import!', 'ok');
+});
+
+document.getElementById('m-import-cancel').addEventListener('click', () => {
+  document.getElementById('import-inp').value = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('m-import-ok').disabled = true;
+  pendingImportData = null;
+  closeModal('m-import');
+});
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!trips.length) {
+    el.innerHTML = '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada trip.</p></div>';
+    return;
+  }
+
+  let html = '<div class="elist">';
+  trips.forEach((t, i) => {
+    const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
+    const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
+    const rem = totalBudget - spent;
+    const pct = Math.round((spent / totalBudget) * 100) || 0;
+    const created = new Date(t.created).toLocaleDateString('id-ID');
+
+    html += `
+      <div class="eitem">
+        <div class="etop">
+          <div class="eleft">
+            <div class="cico" style="background:rgba(79,142,247,0.2);font-size:16px">📅</div>
+            <div>
+              <div class="edesc">${t.name}${t.dest?' · '+t.dest:''}</div>
+              <div class="emeta">${t.employee || 'Tanpa nama'} · ${t.days} hari · Dibuat ${created}</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--mu)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span>${t.expenses.length} item · ${t.expenses.filter(e=>e.proof).length} foto</span>
+            <span>${fmtRp(spent)} / ${fmtRp(totalBudget)}</span>
+          </div>
+          <div class="btrack" style="margin:6px 0"><div class="bfill ${pct<=100?'ok':'ov'}" style="width:${Math.min(pct,100)}%"></div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-sm btn-gh" onclick="exportTrip(${i})">📥 Export</button>
+          <button class="btn btn-sm btn-gh" onclick="askDeleteTrip(${i},'${t.name.replace(/'/g,"\\'")}')">🗑️ Hapus</button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
 // ── TAB ───────────────────────────────────────────────────────────────────────
 function goTab(name) {
   document.querySelectorAll('.tab-view').forEach(el=>el.classList.remove('active'));
@@ -942,6 +1159,7 @@ function goTab(name) {
   if(name==='summary') renderSummary();
   if(name==='all')     renderAll();
   if(name==='export')  renderExport();
+  if(name==='history') renderHistory();
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
