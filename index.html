@@ -368,7 +368,30 @@ function save() {
   try {
     localStorage.setItem('exp_trips', JSON.stringify(trips));
     localStorage.setItem('exp_idx', activeIdx);
-  } catch(e) { toast('Storage penuh – coba hapus beberapa foto bukti.'); }
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      toast('⚠️ Storage penuh! Hapus beberapa foto atau trip lama.', 'err');
+    } else {
+      toast('❌ Gagal simpan data: ' + e.message, 'err');
+    }
+    throw e;
+  }
+}
+
+function getStorageSize() {
+  let size = 0;
+  for (let key in localStorage) {
+    if (localStorage.hasOwnProperty(key)) {
+      size += localStorage[key].length + key.length;
+    }
+  }
+  return size;
+}
+
+function getStorageUsagePercent() {
+  const size = getStorageSize();
+  const limit = 5 * 1024 * 1024; // ~5MB typical limit
+  return Math.round((size / limit) * 100);
 }
 const trip = () => activeIdx >= 0 ? trips[activeIdx] : null;
 
@@ -1026,11 +1049,50 @@ document.getElementById('import-inp').addEventListener('change', (e) => {
       }
 
       pendingImportData = data;
+
+      // Check storage availability
+      const backupSize = JSON.stringify(data).length;
+      const storageBefore = getStorageSize();
+      const estimatedAfter = storageBefore + backupSize;
+      const limit = 5 * 1024 * 1024;
+      const hasEnoughSpace = estimatedAfter <= limit;
+
+      const backupSizeMB = (backupSize / 1024 / 1024).toFixed(2);
+      const usedPercent = getStorageUsagePercent();
+
       document.getElementById('import-preview').style.display = 'block';
       document.getElementById('import-trip-name').textContent = data.trip.name;
       document.getElementById('import-expense-count').textContent = data.expenses.length;
       document.getElementById('import-photo-count').textContent = data.expenses.filter(e=>e.proof).length;
-      document.getElementById('m-import-ok').disabled = false;
+
+      // Show storage warning
+      const storageWarning = document.getElementById('import-preview');
+      const warningEl = storageWarning.querySelector('.storage-warning') || document.createElement('div');
+      warningEl.className = 'storage-warning';
+      warningEl.style.marginTop = '10px';
+      warningEl.style.padding = '10px';
+      warningEl.style.borderRadius = '6px';
+      warningEl.style.fontSize = '12px';
+
+      if (hasEnoughSpace) {
+        warningEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        warningEl.style.color = '#10b981';
+        warningEl.style.borderLeft = '3px solid #10b981';
+        warningEl.textContent = `✓ Storage cukup (${usedPercent}% used, backup: ${backupSizeMB}MB)`;
+      } else {
+        warningEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        warningEl.style.color = '#ef4444';
+        warningEl.style.borderLeft = '3px solid #ef4444';
+        warningEl.textContent = `❌ Storage tidak cukup! Butuh ${backupSizeMB}MB tapi hanya ${(100-usedPercent)}% tersedia.`;
+      }
+
+      if (!storageWarning.querySelector('.storage-warning')) {
+        storageWarning.appendChild(warningEl);
+      } else {
+        storageWarning.querySelector('.storage-warning').replaceWith(warningEl);
+      }
+
+      document.getElementById('m-import-ok').disabled = !hasEnoughSpace;
     } catch(err) {
       toast('⚠️ Gagal membaca file: ' + err.message);
     }
@@ -1042,33 +1104,55 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
   if (!pendingImportData) return;
 
   const data = pendingImportData;
+
+  // Check storage sebelum import
+  const storageBefore = getStorageSize();
+  const backupSize = JSON.stringify(data).length;
+  const estimatedAfter = storageBefore + backupSize;
+  const limit = 5 * 1024 * 1024; // ~5MB
+
+  if (estimatedAfter > limit) {
+    toast('⚠️ Storage tidak cukup! Backup ini terlalu besar. Hapus beberapa trip lama dulu.', 'err');
+    return;
+  }
+
   const newTrip = {
     ...data.trip,
     expenses: data.expenses,
     created: data.trip.created || new Date().toISOString()
   };
 
-  trips.push(newTrip);
-  activeIdx = trips.length - 1;
-  save();
+  try {
+    trips.push(newTrip);
+    activeIdx = trips.length - 1;
+    save();
 
-  document.getElementById('import-inp').value = '';
-  document.getElementById('import-preview').style.display = 'none';
-  document.getElementById('m-import-ok').disabled = true;
-  pendingImportData = null;
+    document.getElementById('import-inp').value = '';
+    document.getElementById('import-preview').style.display = 'none';
+    document.getElementById('m-import-ok').disabled = true;
+    pendingImportData = null;
 
-  closeModal('m-import');
-  refreshTripSel();
-  updateBadge();
-  showTripBody(true);
-  renderBudgetBar();
-  renderTodayList();
-  renderSummary();
-  renderAll();
-  renderExport();
-  renderHistory();
+    closeModal('m-import');
+    refreshTripSel();
+    updateBadge();
+    showTripBody(true);
+    renderBudgetBar();
+    renderTodayList();
+    renderSummary();
+    renderAll();
+    renderExport();
+    renderHistory();
 
-  toast('✓ Backup berhasil di-import!', 'ok');
+    const usage = getStorageUsagePercent();
+    toast(`✓ Backup berhasil di-import! (Storage: ${usage}%)`, 'ok');
+  } catch(err) {
+    trips.pop(); // Rollback
+    if (err.name === 'QuotaExceededError') {
+      toast('❌ Storage penuh! Hapus beberapa trip/foto lalu coba lagi.', 'err');
+    } else {
+      toast('❌ Gagal import: ' + err.message, 'err');
+    }
+  }
 });
 
 document.getElementById('m-import-cancel').addEventListener('click', () => {
