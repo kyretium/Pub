@@ -131,7 +131,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 <div class="app">
   <div class="topbar">
     <div class="topbar-row">
-      <h1>✈️ Expense Dinas</h1>
+      <div>
+        <h1>✈️ Expense Dinas</h1>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">v<span id="app-version">2.1</span></div>
+      </div>
       <button class="btn btn-gh btn-sm" id="btn-new-trip">+ Trip</button>
     </div>
     <div id="badge"></div>
@@ -314,6 +317,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── VERSION ───────────────────────────────────────────────────────────────────
+const APP_VERSION = '2.1';
+document.getElementById('app-version').textContent = APP_VERSION;
+
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const CAPS = { transport: 75000, food: 120000, dest_transport: 120000 };
 const CATS = {
@@ -959,7 +966,7 @@ async function exportPDF(ti) {
   doc.setPage(doc.internal.getNumberOfPages());
   const pH=doc.internal.pageSize.height;
   doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont(undefined,'normal');
-  doc.text('Expense Dinas Tracker',W/2,pH-8,{align:'center'});
+  doc.text('Expense Dinas Tracker v'+APP_VERSION,W/2,pH-8,{align:'center'});
   doc.save('Laporan_'+t.name.replace(/\s+/g,'_')+'_'+todayStr()+'.pdf');
   toast('✓ PDF berhasil didownload!','ok');
 }
@@ -971,6 +978,7 @@ function exportTrip(idx) {
 
   const backup = {
     version: 1,
+    appVersion: APP_VERSION,
     exportDate: new Date().toISOString(),
     trip: {
       name: t.name,
