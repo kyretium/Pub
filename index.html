@@ -295,7 +295,23 @@ let activeIdx = -1;
 let photoB64 = null;
 let photoGeo = null;
 let photoTime = null;
+let currentGeo = null;
 let pendingDelTrip = -1, pendingDelId = -1;
+
+// Capture geolocation saat load (background)
+if (navigator.geolocation) {
+  setInterval(() => {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+      },
+      err => {
+        currentGeo = { status: 'denied' };
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  }, 30000); // Update every 30 seconds
+}
 
 try { trips = JSON.parse(localStorage.getItem('exp_trips') || '[]'); } catch(e){}
 try { activeIdx = parseInt(localStorage.getItem('exp_idx') || '-1'); } catch(e){}
@@ -513,11 +529,23 @@ document.getElementById('btn-add').addEventListener('click', () => {
   if (!date)              { toast('Pilih tanggal.'); return; }
   const err = validate(t, cat, amount, date);
   if (err) { toast('⚠️ ' + err); return; }
-  const expenseObj = { id: Date.now(), desc, amount, date, cat, proof: photoB64, geo: photoGeo, photoTime: photoTime ? photoTime.toISOString() : null, geoAddr: null };
+
+  // Gunakan photo geo jika ada, kalau tidak gunakan current geo
+  const expenseGeo = photoGeo || currentGeo || null;
+  const expenseTime = photoTime ? photoTime.toISOString() : new Date().toISOString();
+
+  const expenseObj = {
+    id: Date.now(), desc, amount, date, cat,
+    proof: photoB64,
+    geo: expenseGeo,
+    photoTime: expenseTime,
+    geoAddr: null
+  };
   t.expenses.push(expenseObj);
+
   // Reverse geocode jika ada geo
-  if (photoGeo && photoGeo.lat) {
-    reverseGeocode(photoGeo.lat, photoGeo.lng).then(addr => {
+  if (expenseGeo && expenseGeo.lat) {
+    reverseGeocode(expenseGeo.lat, expenseGeo.lng).then(addr => {
       expenseObj.geoAddr = addr;
       save();
       renderTodayList(); renderSummary(); renderAll();
@@ -597,28 +625,36 @@ function renderBudgetBar() {
 function eCard(e, ti) {
   const c = CATS[e.cat]||CATS.overhead;
   let proofInfo = '';
+  let geoInfo = '';
+
+  // Foto info
   if (e.proof) {
     if (e.photoTime) {
       const pt = new Date(e.photoTime);
       const timeStr = pt.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:4px;">⏰ Foto diambil: ${timeStr}</div>`;
-    }
-    if (e.geoAddr) {
-      proofInfo += `<div style="font-size:10px;color:var(--acc);margin-top:2px;">📍 ${e.geoAddr}</div>`;
-    }
-    if (e.geo) {
-      if (e.geo.lat !== undefined) {
-        proofInfo += `<div style="font-size:9px;color:var(--mu);margin-top:2px;">Koordinat: ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>`;
-      } else if (e.geo.status === 'unavailable') {
-        proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:2px;">📍 Geolocation tidak tersedia di device ini</div>`;
-      } else if (e.geo.status === 'denied') {
-        proofInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Izin geolocation ditolak</div>`;
-      } else if (e.geo.status === 'timeout') {
-        proofInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Geolocation timeout</div>`;
-      }
+      proofInfo += `<div style="font-size:10px;color:var(--mu);margin-top:4px;">⏰ Dicatat: ${timeStr}</div>`;
     }
   }
+
+  // Geolocation info (untuk foto atau tanpa foto)
+  if (e.geo) {
+    if (e.geoAddr) {
+      geoInfo += `<div style="font-size:10px;color:var(--acc);margin-top:${e.proof?2:4}px;">📍 ${e.geoAddr}</div>`;
+    }
+    if (e.geo.lat !== undefined) {
+      geoInfo += `<div style="font-size:9px;color:var(--mu);margin-top:2px;">Koordinat: ${e.geo.lat.toFixed(6)}, ${e.geo.lng.toFixed(6)} (akurasi: ${Math.round(e.geo.acc)}m)</div>`;
+    } else if (e.geo.status === 'unavailable') {
+      geoInfo += `<div style="font-size:10px;color:var(--mu);margin-top:2px;">📍 Geolocation tidak tersedia</div>`;
+    } else if (e.geo.status === 'denied') {
+      geoInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Izin geolocation ditolak</div>`;
+    } else if (e.geo.status === 'timeout') {
+      geoInfo += `<div style="font-size:10px;color:var(--warn);margin-top:2px;">📍 Geolocation timeout</div>`;
+    }
+  }
+
   const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${proofInfo}</div>` : '';
+  const geoSection = geoInfo ? `<div style="margin-top:${e.proof?8:0}px;">${geoInfo}</div>` : '';
+
   return `<div class="eitem">
     <div class="etop">
       <div class="eleft">
@@ -629,7 +665,7 @@ function eCard(e, ti) {
         <div class="eamt">${fmtRp(e.amount)}</div>
         <button class="edel" onclick="askDelete(${ti},${e.id},'${e.desc.replace(/'/g,"\\'")}')">×</button>
       </div>
-    </div>${proof}
+    </div>${proof}${geoSection}
   </div>`;
 }
 
