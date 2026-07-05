@@ -510,13 +510,56 @@ function askDeleteTrip(ti, name) {
   openModal('m-confirm');
 }
 
+// ── PHOTO COMPRESSION ────────────────────────────────────────────────────────
+function compressImage(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // Resize jika lebih besar dari 1200px
+      const maxSize = 1200;
+      if (width > maxSize || height > maxSize) {
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Compress dengan quality 0.7
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      const originalSize = dataUrl.length;
+      const compressedSize = compressed.length;
+      const saved = Math.round(((originalSize - compressedSize) / originalSize) * 100);
+
+      resolve({ data: compressed, saved });
+    };
+    img.onerror = () => resolve({ data: dataUrl, saved: 0 });
+    img.src = dataUrl;
+  });
+}
+
 // ── PHOTO ─────────────────────────────────────────────────────────────────────
 document.getElementById('photo-drop').addEventListener('click', () => document.getElementById('photo-inp').click());
 document.getElementById('photo-inp').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = ev => {
-    photoB64 = ev.target.result;
+  r.onload = async (ev) => {
+    const original = ev.target.result;
+
+    // Compress foto
+    const { data: compressed, saved } = await compressImage(original);
+    photoB64 = compressed;
+
+    if (saved > 0) {
+      toast(`📷 Foto di-compress (hemat ${saved}%)`, 'ok');
+    }
     // Capture timestamp (always)
     photoTime = new Date();
     // Capture geolocation (if available)
@@ -1165,12 +1208,26 @@ document.getElementById('m-import-cancel').addEventListener('click', () => {
 
 function renderHistory() {
   const el = document.getElementById('history-list');
+  const usage = getStorageUsagePercent();
+
+  // Storage status header
+  let html = `
+    <div style="background:var(--card);padding:12px 14px;border-radius:8px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--mu);font-weight:600">💾 STORAGE STATUS</span>
+        <span style="font-size:14px;font-weight:700;color:${usage>80?'#ef4444':usage>60?'#f59e0b':'#10b981'}">${usage}%</span>
+      </div>
+      <div class="btrack" style="margin:6px 0"><div class="bfill ${usage>80?'ov':usage>60?'wn':'ok'}" style="width:${usage}%"></div></div>
+      ${usage>70?`<div style="font-size:11px;color:var(--warn);margin-top:6px">⚠️ Hampir penuh! Export & hapus trip lama.</div>`:''}
+    </div>
+  `;
+
   if (!trips.length) {
-    el.innerHTML = '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada trip.</p></div>';
+    el.innerHTML = html + '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada trip.</p></div>';
     return;
   }
 
-  let html = '<div class="elist">';
+  html += '<div class="elist">';
   trips.forEach((t, i) => {
     const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
     const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
