@@ -142,7 +142,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div id="tab-add" class="tab-view active">
       <div class="fg">
         <label class="lbl">Pilih Perjalanan</label>
-        <select id="trip-sel"></select>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <select id="trip-sel" style="flex:1;"></select>
+          <button class="btn btn-gh btn-sm" id="btn-del-trip" style="margin-bottom:0;padding:11px 10px;" title="Hapus trip">🗑️</button>
+        </div>
       </div>
       <div id="no-trip" class="empty"><div class="ei">🗺️</div><p>Ketuk <b>+ Trip</b> di atas untuk mulai.</p></div>
       <div id="trip-body" style="display:none">
@@ -557,6 +560,27 @@ document.getElementById('trip-sel').addEventListener('change', function() {
   updateBadge();
   showTripBody(activeIdx >= 0);
   if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+});
+
+document.getElementById('btn-del-trip').addEventListener('click', () => {
+  if (activeIdx < 0) { toast('Pilih trip dulu.'); return; }
+  const t = trips[activeIdx];
+  document.getElementById('m-confirm-desc').textContent = `Hapus trip "${t.name}"? Data tidak dapat dikembalikan.`;
+  const btnYes = document.getElementById('m-confirm-yes');
+  btnYes.onclick = () => {
+    trips.splice(activeIdx, 1);
+    activeIdx = -1;
+    save();
+    closeModal('m-confirm');
+    refreshTripSel();
+    updateBadge();
+    showTripBody(false);
+    renderSummary();
+    renderAll();
+    renderExport();
+    toast('Trip berhasil dihapus.', 'ok');
+  };
+  openModal('m-confirm');
 });
 function showTripBody(show) {
   document.getElementById('no-trip').style.display   = show ? 'none' : '';
