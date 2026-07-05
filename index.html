@@ -131,7 +131,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 <div class="app">
   <div class="topbar">
     <div class="topbar-row">
-      <h1>✈️ Expense Dinas</h1>
+      <div>
+        <h1>✈️ Expense Dinas</h1>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">v<span id="app-version">2.1</span></div>
+      </div>
       <button class="btn btn-gh btn-sm" id="btn-new-trip">+ Trip</button>
     </div>
     <div id="badge"></div>
@@ -318,6 +321,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── VERSION ───────────────────────────────────────────────────────────────────
+const APP_VERSION = '2.1';
+document.getElementById('app-version').textContent = APP_VERSION;
+
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const CAPS = { transport: 75000, food: 120000, dest_transport: 120000 };
 const CATS = {
@@ -877,7 +884,8 @@ async function exportPDF(ti) {
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210, M=14; let y=20;
   const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
-  const rem   = t.budget - spent;
+  const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
+  const rem   = totalBudget - spent;
 
   doc.setFillColor(26,26,46); doc.rect(0,0,W,42,'F');
   doc.setTextColor(255,255,255);
@@ -892,7 +900,6 @@ async function exportPDF(ti) {
   doc.setFillColor(245,247,250);doc.rect(M,y,W-M*2,28,'F');
   const cs=[M+2,68,118,162];
   const lbs=['Total Budget','Terpakai','Sisa Budget','Jumlah Item'];
-  const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
   const vs=[fmtRp(totalBudget),fmtRp(spent),fmtRp(rem),t.expenses.length+' item'];
   lbs.forEach((l,i)=>{doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(120,120,120);doc.text(l,cs[i],y+8);});
   vs.forEach((v,i)=>{doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,30,30);doc.text(String(v),cs[i],y+18);});
@@ -993,7 +1000,7 @@ async function exportPDF(ti) {
   doc.setPage(doc.internal.getNumberOfPages());
   const pH=doc.internal.pageSize.height;
   doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont(undefined,'normal');
-  doc.text('Expense Dinas Tracker',W/2,pH-8,{align:'center'});
+  doc.text('Expense Dinas Tracker v'+APP_VERSION,W/2,pH-8,{align:'center'});
   doc.save('Laporan_'+t.name.replace(/\s+/g,'_')+'_'+todayStr()+'.pdf');
   toast('✓ PDF berhasil didownload!','ok');
 }
@@ -1005,6 +1012,7 @@ function exportTrip(idx) {
 
   const backup = {
     version: 1,
+    appVersion: APP_VERSION,
     exportDate: new Date().toISOString(),
     trip: {
       name: t.name,
