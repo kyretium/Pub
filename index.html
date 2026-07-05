@@ -177,6 +177,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
               <div style="font-size:28px">📷</div>
               <p>Ketuk untuk kamera / galeri</p>
             </div>
+            <div id="photo-capacity" style="font-size:11px;color:var(--mu);margin-top:6px;display:none"></div>
             <div class="photo-prev" id="photo-prev" style="display:none">
               <img id="photo-img" src=""/>
               <button class="photo-clr" id="photo-clr">×</button>
@@ -322,7 +323,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -396,6 +397,48 @@ function getStorageUsagePercent() {
   const size = getStorageSize();
   const limit = 5 * 1024 * 1024; // ~5MB typical limit
   return Math.round((size / limit) * 100);
+}
+
+function updatePhotoCapacity() {
+  const t = trip();
+  if (!t) return;
+
+  const photosInTrip = t.expenses.filter(e => e.proof).length;
+  const photosSize = t.expenses.reduce((s, e) => {
+    if (e.proof) {
+      s += e.proof.length; // base64 string length
+    }
+    return s;
+  }, 0);
+
+  const storageAvailable = 5 * 1024 * 1024 - getStorageSize();
+  // Dengan aggressive compression (quality 0.6, resize 800px): ~200-250KB per foto
+  const avgPhotoSize = photosSize > 0 ? Math.round(photosSize / photosInTrip) : 225000; // default 225KB
+  const estimatedPhotosCanAdd = Math.max(0, Math.floor(storageAvailable / avgPhotoSize));
+
+  const el = document.getElementById('photo-capacity');
+  if (!el) return;
+
+  const MAX_PHOTOS = 40; // Support 30-40 foto per trip dengan aggressive compression
+  const remaining = Math.max(0, MAX_PHOTOS - photosInTrip);
+  const capacity = Math.min(estimatedPhotosCanAdd, remaining);
+
+  if (photosInTrip === 0) {
+    el.style.display = 'none';
+  } else {
+    el.style.display = 'block';
+    const percent = Math.round((photosInTrip / MAX_PHOTOS) * 100);
+    const status = capacity <= 0 ? '⚠️ Storage penuh!' : capacity <= 3 ? `⚠️ Sisa ${capacity} foto` : `✓ Sisa ${capacity} foto`;
+    el.innerHTML = `📸 ${photosInTrip}/${MAX_PHOTOS} foto · ${status}`;
+
+    if (capacity <= 0) {
+      el.style.color = '#ef4444';
+    } else if (capacity <= 3) {
+      el.style.color = '#f59e0b';
+    } else {
+      el.style.color = '#10b981';
+    }
+  }
 }
 const trip = () => activeIdx >= 0 ? trips[activeIdx] : null;
 
@@ -523,13 +566,56 @@ function askDeleteTrip(ti, name) {
   openModal('m-confirm');
 }
 
+// ── PHOTO COMPRESSION ────────────────────────────────────────────────────────
+function compressImage(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // Aggressive resize untuk support lebih banyak foto: max 800px
+      const maxSize = 800;
+      if (width > maxSize || height > maxSize) {
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Aggressive compression: quality 0.6 (60%) untuk save 60% ukuran
+      const compressed = canvas.toDataURL('image/jpeg', 0.6);
+      const originalSize = dataUrl.length;
+      const compressedSize = compressed.length;
+      const saved = Math.round(((originalSize - compressedSize) / originalSize) * 100);
+
+      resolve({ data: compressed, saved });
+    };
+    img.onerror = () => resolve({ data: dataUrl, saved: 0 });
+    img.src = dataUrl;
+  });
+}
+
 // ── PHOTO ─────────────────────────────────────────────────────────────────────
 document.getElementById('photo-drop').addEventListener('click', () => document.getElementById('photo-inp').click());
 document.getElementById('photo-inp').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = ev => {
-    photoB64 = ev.target.result;
+  r.onload = async (ev) => {
+    const original = ev.target.result;
+
+    // Compress foto
+    const { data: compressed, saved } = await compressImage(original);
+    photoB64 = compressed;
+
+    if (saved > 0) {
+      toast(`📷 Foto di-compress (hemat ${saved}%)`, 'ok');
+    }
     // Capture timestamp (always)
     photoTime = new Date();
     // Capture geolocation (if available)
@@ -571,6 +657,7 @@ function clearPhoto() {
   document.getElementById('photo-drop').style.display = '';
   document.getElementById('photo-prev').style.display = 'none';
   document.getElementById('photo-img').src = '';
+  updatePhotoCapacity();
 }
 
 // ── IMAGE LIGHTBOX ────────────────────────────────────────────────────────────
@@ -658,6 +745,7 @@ document.getElementById('btn-add').addEventListener('click', () => {
   document.getElementById('i-amt').value  = '';
   clearPhoto();
   renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
+  updatePhotoCapacity();
   toast('✓ Ditambahkan!', 'ok');
 });
 
@@ -675,6 +763,7 @@ function refreshTripSel() {
 document.getElementById('trip-sel').addEventListener('change', function() {
   activeIdx = this.value === '' ? -1 : parseInt(this.value);
   save();
+  updatePhotoCapacity();
   updateBadge();
   showTripBody(activeIdx >= 0);
   if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
@@ -1199,12 +1288,27 @@ document.getElementById('m-import-cancel').addEventListener('click', () => {
 
 function renderHistory() {
   const el = document.getElementById('history-list');
+  const usage = getStorageUsagePercent();
+
+  // Storage status header
+  let html = `
+    <div style="background:var(--card);padding:12px 14px;border-radius:8px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--mu);font-weight:600">💾 STORAGE STATUS</span>
+        <span style="font-size:14px;font-weight:700;color:${usage>80?'#ef4444':usage>60?'#f59e0b':'#10b981'}">${usage}%</span>
+      </div>
+      <div class="btrack" style="margin:6px 0"><div class="bfill ${usage>80?'ov':usage>60?'wn':'ok'}" style="width:${usage}%"></div></div>
+      ${usage>70?`<div style="font-size:11px;color:var(--warn);margin-top:6px">⚠️ Hampir penuh! Export & hapus trip lama.</div>`:''}
+    </div>
+  `;
+
   if (!trips.length) {
-    el.innerHTML = '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada trip.</p></div>';
+    el.innerHTML = html + '<div class="empty" style="padding:20px 0"><p style="color:var(--mu);font-size:13px">Belum ada trip.</p></div>';
     return;
   }
 
-  let html = '<div class="elist">';
+  html += '<div style="font-size:12px;color:var(--mu);margin-bottom:12px">💡 Dengan aggressive compression: 30-40 foto per trip</div>';
+  html += '<div class="elist">';
   trips.forEach((t, i) => {
     const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
     const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
@@ -1248,6 +1352,7 @@ function goTab(name) {
   document.querySelectorAll('.nv').forEach(el=>el.classList.remove('on'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nv-'+name).classList.add('on');
+  if(name==='add')     updatePhotoCapacity();
   if(name==='summary') renderSummary();
   if(name==='all')     renderAll();
   if(name==='export')  renderExport();
