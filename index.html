@@ -366,6 +366,61 @@ let currentGeo = null;
 let pendingDelTrip = -1, pendingDelId = -1, pendingDelMode = 'expense'; // 'expense' or 'trip'
 let editingTrip = -1, editingExpenseId = -1; // untuk edit expense
 
+// ── INDEXEDDB WRAPPER (Support 20MB+ storage) ─────────────────────────────────
+let db = null;
+const dbName = 'ExpenseDinasDB';
+const storeName = 'app-data';
+const dbVersion = 1;
+
+async function initDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, dbVersion);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    };
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName);
+      }
+    };
+  });
+}
+
+async function dbGet(key) {
+  if (!db) await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function dbSet(key, value) {
+  if (!db) await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const request = store.put(value, key);
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => resolve(false);
+  });
+}
+
+async function dbClear() {
+  if (!db) await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const request = store.clear();
+    request.onsuccess = () => resolve(true);
+  });
+}
+
 // Capture geolocation saat load (background)
 if (navigator.geolocation) {
   const getGeo = () => {
@@ -387,21 +442,50 @@ if (navigator.geolocation) {
   setInterval(getGeo, 30000);
 }
 
-try { trips = JSON.parse(localStorage.getItem('exp_trips') || '[]'); } catch(e){}
-try { activeIdx = parseInt(localStorage.getItem('exp_idx') || '-1'); } catch(e){}
-if (activeIdx >= trips.length) activeIdx = -1;
+// Load data dari IndexedDB (async)
+async function loadData() {
+  try {
+    await initDB();
+    // Coba load dari IndexedDB dulu
+    const saved = await dbGet('exp_trips');
+    if (saved) {
+      trips = saved;
+      const idx = await dbGet('exp_idx');
+      activeIdx = idx ? parseInt(idx) : -1;
+    } else {
+      // Fallback: migrate dari localStorage jika ada
+      try {
+        const oldTrips = localStorage.getItem('exp_trips');
+        if (oldTrips) {
+          trips = JSON.parse(oldTrips);
+          const oldIdx = localStorage.getItem('exp_idx');
+          activeIdx = oldIdx ? parseInt(oldIdx) : -1;
+          // Save ke IndexedDB
+          await save();
+        }
+      } catch(e) {}
+    }
+    if (activeIdx >= trips.length) activeIdx = -1;
+  } catch(e) {
+    console.error('Load data error:', e);
+  }
+}
 
 function save() {
-  try {
-    localStorage.setItem('exp_trips', JSON.stringify(trips));
-    localStorage.setItem('exp_idx', activeIdx);
-  } catch(e) {
-    if (e.name === 'QuotaExceededError') {
-      toast('⚠️ Storage penuh! Hapus beberapa foto atau trip lama.', 'err');
-    } else {
-      toast('❌ Gagal simpan data: ' + e.message, 'err');
+  if (!db) {
+    // Fallback ke localStorage jika IndexedDB belum siap
+    try {
+      localStorage.setItem('exp_trips', JSON.stringify(trips));
+      localStorage.setItem('exp_idx', activeIdx);
+    } catch(e) {
+      if (e.name === 'QuotaExceededError') {
+        toast('⚠️ Storage penuh! Hapus beberapa foto atau trip lama.', 'err');
+      }
     }
-    throw e;
+  } else {
+    // Simpan ke IndexedDB (non-blocking)
+    dbSet('exp_trips', trips);
+    dbSet('exp_idx', activeIdx);
   }
 }
 
@@ -426,7 +510,7 @@ function calculateStorageBreakdown() {
   const tripsJsonSize = JSON.stringify(trips).length;
   const metadataSize = JSON.stringify({ exp_idx: activeIdx }).length;
   const totalUsed = tripsJsonSize + metadataSize;
-  const limit = 5 * 1024 * 1024; // 5MB
+  const limit = 20 * 1024 * 1024; // 20MB (IndexedDB)
   const available = Math.max(0, limit - totalUsed);
 
   return {
@@ -1456,12 +1540,16 @@ function goTab(name) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-document.getElementById('i-date').value = todayStr();
-refreshTripSel();
-updateBadge();
-showTripBody(activeIdx >= 0);
-if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
-renderExport();
+(async () => {
+  await loadData();
+  document.getElementById('i-date').value = todayStr();
+  refreshTripSel();
+  updateBadge();
+  showTripBody(activeIdx >= 0);
+  if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+  renderExport();
+  renderHistory();
+})();
 </script>
 </body>
 </html>
