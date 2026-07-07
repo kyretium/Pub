@@ -395,6 +395,23 @@ function getStorageUsagePercent() {
   return Math.round((size / limit) * 100);
 }
 
+function calculateStorageBreakdown() {
+  // Hitung actual size dengan JSON stringify untuk akurasi
+  const tripsJsonSize = JSON.stringify(trips).length;
+  const metadataSize = JSON.stringify({ exp_idx: activeIdx }).length;
+  const totalUsed = tripsJsonSize + metadataSize;
+  const limit = 5 * 1024 * 1024; // 5MB
+  const available = Math.max(0, limit - totalUsed);
+
+  return {
+    used: totalUsed,
+    available: available,
+    percent: Math.round((totalUsed / limit) * 100),
+    photosSize: trips.reduce((sum, t) => sum + t.expenses.reduce((s, e) => s + (e.proof ? e.proof.length : 0), 0), 0),
+    metadataSize: totalUsed - trips.reduce((sum, t) => sum + t.expenses.reduce((s, e) => s + (e.proof ? e.proof.length : 0), 0), 0)
+  };
+}
+
 function updatePhotoCapacity() {
   const t = trip();
   if (!t) return;
@@ -402,20 +419,26 @@ function updatePhotoCapacity() {
   const photosInTrip = t.expenses.filter(e => e.proof).length;
   const photosSize = t.expenses.reduce((s, e) => {
     if (e.proof) {
-      s += e.proof.length; // base64 string length
+      s += e.proof.length;
     }
     return s;
   }, 0);
 
-  const storageAvailable = 5 * 1024 * 1024 - getStorageSize();
+  // Gunakan actual storage calculation
+  const storage = calculateStorageBreakdown();
+  const available = storage.available;
+
   // Dengan aggressive compression (quality 0.6, resize 800px): ~200-250KB per foto
-  const avgPhotoSize = photosSize > 0 ? Math.round(photosSize / photosInTrip) : 225000; // default 225KB
-  const estimatedPhotosCanAdd = Math.max(0, Math.floor(storageAvailable / avgPhotoSize));
+  // Actual average dari current photos
+  const avgPhotoSize = photosInTrip > 0 ? Math.round(photosSize / photosInTrip) : 225000;
+
+  // Conservative estimate: assume next photos sama size + 10% overhead
+  const estimatedPhotosCanAdd = Math.max(0, Math.floor((available * 0.9) / (avgPhotoSize * 1.1)));
 
   const el = document.getElementById('photo-capacity');
   if (!el) return;
 
-  const MAX_PHOTOS = 40; // Support 30-40 foto per trip dengan aggressive compression
+  const MAX_PHOTOS = 40;
   const remaining = Math.max(0, MAX_PHOTOS - photosInTrip);
   const capacity = Math.min(estimatedPhotosCanAdd, remaining);
 
@@ -423,17 +446,27 @@ function updatePhotoCapacity() {
     el.style.display = 'none';
   } else {
     el.style.display = 'block';
-    const percent = Math.round((photosInTrip / MAX_PHOTOS) * 100);
-    const status = capacity <= 0 ? '⚠️ Storage penuh!' : capacity <= 3 ? `⚠️ Sisa ${capacity} foto` : `✓ Sisa ${capacity} foto`;
-    el.innerHTML = `📸 ${photosInTrip}/${MAX_PHOTOS} foto · ${status}`;
 
-    if (capacity <= 0) {
-      el.style.color = '#ef4444';
-    } else if (capacity <= 3) {
-      el.style.color = '#f59e0b';
+    let status = '';
+    let color = '';
+
+    if (available < 200000) { // < 200KB
+      status = '❌ Storage penuh! Hapus trip lama.';
+      color = '#ef4444';
+    } else if (capacity <= 1) {
+      status = '⚠️ Sisa 1-2 foto (nearnya penuh)';
+      color = '#f59e0b';
+    } else if (capacity <= 5) {
+      status = `⚠️ Sisa ${capacity} foto`;
+      color = '#f59e0b';
     } else {
-      el.style.color = '#10b981';
+      status = `✓ Sisa ${capacity} foto`;
+      color = '#10b981';
     }
+
+    const availableMB = (available / 1024 / 1024).toFixed(1);
+    el.innerHTML = `📸 ${photosInTrip}/${MAX_PHOTOS} foto · ${status}<br><span style="font-size:10px;color:${color}66">${availableMB}MB tersisa</span>`;
+    el.style.color = color;
   }
 }
 const trip = () => activeIdx >= 0 ? trips[activeIdx] : null;
@@ -1254,9 +1287,13 @@ document.getElementById('m-import-cancel').addEventListener('click', () => {
 
 function renderHistory() {
   const el = document.getElementById('history-list');
-  const usage = getStorageUsagePercent();
+  const storage = calculateStorageBreakdown();
+  const usage = storage.percent;
+  const usedMB = (storage.used / 1024 / 1024).toFixed(2);
+  const availMB = (storage.available / 1024 / 1024).toFixed(2);
+  const photosMB = (storage.photosSize / 1024 / 1024).toFixed(2);
 
-  // Storage status header
+  // Storage status header dengan breakdown
   let html = `
     <div style="background:var(--card);padding:12px 14px;border-radius:8px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -1264,7 +1301,13 @@ function renderHistory() {
         <span style="font-size:14px;font-weight:700;color:${usage>80?'#ef4444':usage>60?'#f59e0b':'#10b981'}">${usage}%</span>
       </div>
       <div class="btrack" style="margin:6px 0"><div class="bfill ${usage>80?'ov':usage>60?'wn':'ok'}" style="width:${usage}%"></div></div>
-      ${usage>70?`<div style="font-size:11px;color:var(--warn);margin-top:6px">⚠️ Hampir penuh! Export & hapus trip lama.</div>`:''}
+      <div style="font-size:11px;color:var(--mu);margin-top:8px;line-height:1.6">
+        <div>📊 Terpakai: <strong>${usedMB}MB / 5MB</strong></div>
+        <div style="font-size:10px;margin-left:16px">📷 Foto: ${photosMB}MB</div>
+        <div style="font-size:10px;margin-left:16px">📝 Metadata: ${(storage.metadataSize / 1024 / 1024).toFixed(2)}MB</div>
+        <div style="margin-top:4px">✓ Tersisa: <strong>${availMB}MB</strong></div>
+      </div>
+      ${usage>70?`<div style="font-size:11px;color:var(--warn);margin-top:8px;border-top:1px solid var(--bd);padding-top:8px">⚠️ Hampir penuh! Export & hapus trip lama.</div>`:''}
     </div>
   `;
 
