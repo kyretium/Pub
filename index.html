@@ -290,6 +290,31 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
   </div>
 </div>
 
+<!-- Edit Expense Modal -->
+<div class="mover" id="m-edit-expense">
+  <div class="mbox">
+    <h2>Edit Pengeluaran</h2>
+    <div class="fg"><label class="lbl">Keterangan</label><input type="text" id="edit-desc" placeholder=""/></div>
+    <div class="row2">
+      <div class="fg"><label class="lbl">Jumlah (Rp)</label><input type="number" id="edit-amt" min="0" inputmode="numeric"/></div>
+      <div class="fg"><label class="lbl">Tanggal</label><input type="date" id="edit-date"/></div>
+    </div>
+    <div class="fg"><label class="lbl">Kategori</label>
+      <select id="edit-cat">
+        <option value="entertainment">🎉 Entertain</option>
+        <option value="transport">🚗 Transport Dalam Kota</option>
+        <option value="food">🍽️ Food &amp; Beverage</option>
+        <option value="dest_transport">🛣️ Transport ke Tujuan</option>
+        <option value="overhead">🚆 Overhead (Train/Car)</option>
+      </select>
+    </div>
+    <div class="mbtns">
+      <button class="btn btn-gh" style="flex:1" id="edit-cancel">Batal</button>
+      <button class="btn btn-acc" style="flex:1" id="edit-save">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <!-- Import Backup Modal -->
 <div class="mover" id="m-import">
   <div class="mbox">
@@ -323,7 +348,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -343,6 +368,7 @@ let photoGeo = null;
 let photoTime = null;
 let currentGeo = null;
 let pendingDelTrip = -1, pendingDelId = -1, pendingDelMode = 'expense'; // 'expense' or 'trip'
+let editingTrip = -1, editingExpenseId = -1; // untuk edit expense
 
 // Capture geolocation saat load (background)
 if (navigator.geolocation) {
@@ -491,6 +517,63 @@ function toast(msg, type='err') {
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────────────────────
+// ── EDIT EXPENSE ──────────────────────────────────────────────────────────────
+function openEditExpense(ti, expenseId) {
+  const t = trips[ti];
+  const e = t.expenses.find(x => x.id === expenseId);
+  if (!e) return;
+
+  editingTrip = ti;
+  editingExpenseId = expenseId;
+
+  document.getElementById('edit-desc').value = e.desc;
+  document.getElementById('edit-amt').value = e.amount;
+  document.getElementById('edit-date').value = e.date;
+  document.getElementById('edit-cat').value = e.cat;
+
+  openModal('m-edit-expense');
+}
+
+document.getElementById('edit-cancel').addEventListener('click', () => {
+  closeModal('m-edit-expense');
+});
+
+document.getElementById('edit-save').addEventListener('click', () => {
+  const t = trips[editingTrip];
+  const e = t.expenses.find(x => x.id === editingExpenseId);
+  if (!e) return;
+
+  const newDesc = document.getElementById('edit-desc').value.trim();
+  const newAmount = parseFloat(document.getElementById('edit-amt').value);
+  const newDate = document.getElementById('edit-date').value;
+  const newCat = document.getElementById('edit-cat').value;
+
+  if (!newDesc) { toast('Isi keterangan.'); return; }
+  if (!newAmount || newAmount <= 0) { toast('Isi jumlah yang valid.'); return; }
+  if (!newDate) { toast('Pilih tanggal.'); return; }
+
+  // Validate budget
+  const err = validate(t, newCat, newAmount, newDate, editingExpenseId);
+  if (err) { toast('⚠️ ' + err); return; }
+
+  // Update expense
+  e.desc = newDesc;
+  e.amount = newAmount;
+  e.date = newDate;
+  e.cat = newCat;
+
+  save();
+  closeModal('m-edit-expense');
+  renderBudgetBar();
+  renderTodayList();
+  renderSummary();
+  renderAll();
+  renderExport();
+  updatePhotoCapacity();
+
+  toast('✓ Diperbarui!', 'ok');
+});
+
 function openModal(id) { document.getElementById(id).classList.add('on'); }
 function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 
@@ -715,9 +798,12 @@ async function reverseGeocode(lat, lng) {
 }
 
 // ── VALIDATION ────────────────────────────────────────────────────────────────
-function validate(t, cat, amount, date) {
+function validate(t, cat, amount, date, excludeExpenseId = null) {
+  // Exclude expense yang sedang diedit dari validasi
+  const expenses = excludeExpenseId ? t.expenses.filter(e => e.id !== excludeExpenseId) : t.expenses;
+
   const catBudget = t.budgets && t.budgets[cat] ? t.budgets[cat] : 0;
-  const catSpent = t.expenses.filter(e => e.cat === cat).reduce((s,e) => s+e.amount, 0);
+  const catSpent = expenses.filter(e => e.cat === cat).reduce((s,e) => s+e.amount, 0);
   const catRem = catBudget - catSpent;
 
   if (amount > catRem) return `Budget kategori ${CATS[cat].label} tidak cukup!\nBudget: ${fmtRp(catBudget)}, Terpakai: ${fmtRp(catSpent)}, Sisa: ${fmtRp(catRem)}`;
@@ -725,13 +811,13 @@ function validate(t, cat, amount, date) {
   if (cat === 'transport') {
     const engineers = (t.staff || 0) + (t.manager || 0);
     const dayBudget = catBudget / Math.max(t.days || 1, 1);
-    const daySum = t.expenses.filter(e => e.cat==='transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
+    const daySum = expenses.filter(e => e.cat==='transport' && e.date===date).reduce((s,e)=>s+e.amount,0);
     if (daySum + amount > dayBudget)
       return `Transport harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
   if (cat === 'food') {
     const dayBudget = catBudget / Math.max(t.days || 1, 1);
-    const daySum = t.expenses.filter(e => e.cat==='food' && e.date===date).reduce((s,e)=>s+e.amount,0);
+    const daySum = expenses.filter(e => e.cat==='food' && e.date===date).reduce((s,e)=>s+e.amount,0);
     if (daySum + amount > dayBudget)
       return `F&B harian melebihi batas ${fmtRp(dayBudget)}.\nTerpakai: ${fmtRp(daySum)}, sisa: ${fmtRp(dayBudget-daySum)}`;
   }
@@ -908,6 +994,7 @@ function eCard(e, ti) {
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <div class="eamt">${fmtRp(e.amount)}</div>
+        <button class="edel" style="font-size:16px;padding:2px 6px" onclick="openEditExpense(${ti},${e.id})">✎</button>
         <button class="edel" onclick="askDelete(${ti},${e.id},'${e.desc.replace(/'/g,"\\'")}')">×</button>
       </div>
     </div>${proof}${geoSection}
