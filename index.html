@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v2.9-customer-array-ui -->
+<!-- Cache busting: v20260710-v2.10-customer-in-members -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -378,7 +378,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.9';
+const APP_VERSION = '2.10';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1126,16 +1126,17 @@ function updateMemberCheckboxes() {
   const t = trip();
   if (!t) return;
 
-  // Sanitize staff dan manager - pastikan string, bukan null/undefined
+  // Sanitize staff, manager, dan customer - pastikan string, bukan null/undefined
   const staff = Array.isArray(t.staff) ? t.staff.filter(s => s && s.trim && s.trim() !== '') : [];
   const manager = Array.isArray(t.manager) ? t.manager.filter(m => m && m.trim && m.trim() !== '') : [];
-  const allMembers = [...staff, ...manager];
+  const customer = Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim && c.trim() !== '') : (t.customer && typeof t.customer === 'string' ? [t.customer] : []);
+  const allMembers = [...staff, ...manager, ...customer];
 
   // Update main form
   const mainList = document.getElementById('i-members-list');
   if (mainList) {
     if (allMembers.length === 0) {
-      mainList.innerHTML = '<div style="padding:10px;color:var(--mu);font-size:12px">❌ Belum ada member. Tambahkan staff/manager saat buat trip.</div>';
+      mainList.innerHTML = '<div style="padding:10px;color:var(--mu);font-size:12px">❌ Belum ada member. Tambahkan staff/manager/customer saat buat trip.</div>';
     } else {
       mainList.innerHTML = `
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;background:rgba(79,142,247,0.15);border:1px solid rgba(79,142,247,0.3)">
