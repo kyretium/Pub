@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v2.8-member-sync-fix -->
+<!-- Cache busting: v20260710-v2.9-customer-array-ui -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -147,7 +147,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
       <div class="fg">
         <label class="lbl">Pilih Perjalanan</label>
         <div style="display:flex;gap:8px;align-items:flex-end;">
-          <select id="trip-sel" style="flex:1;"></select>
+          <select id="trip-sel" style="flex:1;" autocomplete="off"></select>
           <button class="btn btn-gh btn-sm" id="btn-del-trip" style="margin-bottom:0;padding:11px 10px;" title="Hapus trip">🗑️</button>
         </div>
       </div>
@@ -270,7 +270,11 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <button class="btn btn-gh btn-sm" id="m-add-staff" style="width:100%;margin-bottom:10px">+ Tambah Staff</button>
     <div id="m-manager-list" style="margin-bottom:10px"></div>
     <button class="btn btn-gh btn-sm" id="m-add-manager" style="width:100%;margin-bottom:10px">+ Tambah Manager</button>
-    <div class="fg"><label class="lbl">Customer (Opsional)</label><input type="text" id="m-customer" placeholder="Nama customer/klien"/></div>
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      👥 CUSTOMER (OPSIONAL)
+    </div>
+    <div id="m-customer-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-gh btn-sm" id="m-add-customer" style="width:100%;margin-bottom:10px">+ Tambah Customer</button>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       📊 BUDGET PER KATEGORI
     </div>
@@ -374,7 +378,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -708,6 +712,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 // ── TRIP MODAL ────────────────────────────────────────────────────────────────
 let tripStaffList = [];
 let tripManagerList = [];
+let tripCustomerList = [];
 
 function renderStaffList() {
   const container = document.getElementById('m-staff-list');
@@ -737,9 +742,23 @@ function renderManagerList() {
   `).join('');
 }
 
+function renderCustomerList() {
+  const container = document.getElementById('m-customer-list');
+  if (tripCustomerList.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = tripCustomerList.map((name, i) => `
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;">
+      <input type="text" value="${name}" onchange="tripCustomerList[${i}] = this.value" placeholder="Nama customer" style="flex:1;padding:8px"/>
+      <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripCustomerList.splice(${i},1); renderCustomerList()">×</button>
+    </div>
+  `).join('');
+}
+
 document.getElementById('btn-new-trip').addEventListener('click', () => {
   try {
-    ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => {
+    ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
@@ -750,8 +769,10 @@ document.getElementById('btn-new-trip').addEventListener('click', () => {
   }
   tripStaffList = [];
   tripManagerList = [];
+  tripCustomerList = [];
   renderStaffList();
   renderManagerList();
+  renderCustomerList();
   openModal('m-trip');
   setTimeout(() => {
     const nameEl = document.getElementById('m-name');
@@ -778,6 +799,18 @@ if (addManagerBtn) {
     renderManagerList();
     setTimeout(() => {
       const inputs = document.querySelectorAll('#m-manager-list input');
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 0);
+  });
+}
+
+const addCustomerBtn = document.getElementById('m-add-customer');
+if (addCustomerBtn) {
+  addCustomerBtn.addEventListener('click', () => {
+    tripCustomerList.push('');
+    renderCustomerList();
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('#m-customer-list input');
       if (inputs.length > 0) inputs[inputs.length - 1].focus();
     }, 0);
   });
@@ -814,9 +847,9 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   }
 
   const emp     = document.getElementById('m-emp').value.trim();
-  const customer = document.getElementById('m-customer').value.trim();
   let staff   = tripStaffList.filter(s => s.trim() !== '');
   let manager = tripManagerList.filter(m => m.trim() !== '');
+  let customer = tripCustomerList.filter(c => c.trim() !== '');
 
   // Tambahkan nama karyawan utama ke staff list jika tidak kosong dan belum ada
   if (emp && !staff.includes(emp) && !manager.includes(emp)) {
@@ -1446,9 +1479,9 @@ async function exportPDF(ti) {
     if (memberInfo) memberInfo += ' | ';
     memberInfo += 'Manager: ' + t.manager.join(', ');
   }
-  if (t.customer) {
+  if (t.customer && (Array.isArray(t.customer) ? t.customer.length > 0 : t.customer)) {
     if (memberInfo) memberInfo += ' | ';
-    memberInfo += 'Customer: ' + t.customer;
+    memberInfo += 'Customer: ' + (Array.isArray(t.customer) ? t.customer.join(', ') : t.customer);
   }
   if (memberInfo) {
     doc.setFontSize(8);
@@ -1707,8 +1740,8 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
 
   const newTrip = {
     ...data.trip,
-    // Ensure new fields exist
-    customer: data.trip.customer || '',
+    // Ensure new fields exist with backward compatibility
+    customer: Array.isArray(data.trip.customer) ? data.trip.customer : (data.trip.customer && typeof data.trip.customer === 'string' ? [data.trip.customer] : []),
     staff: Array.isArray(data.trip.staff) ? data.trip.staff : (typeof data.trip.staff === 'number' ? [] : data.trip.staff || []),
     manager: Array.isArray(data.trip.manager) ? data.trip.manager : (typeof data.trip.manager === 'number' ? [] : data.trip.manager || []),
     expenses: data.expenses || [],
@@ -1804,7 +1837,7 @@ function renderHistory() {
             <div>
               <div class="edesc">${t.name}${t.dest?' · '+t.dest:''}</div>
               <div class="emeta">${t.employee || 'Tanpa nama'} · ${t.days} hari · Dibuat ${created}</div>
-              ${t.customer ? `<div style="font-size:11px;color:var(--acc);margin-top:4px">👤 Customer: ${t.customer}</div>` : ''}
+              ${t.customer && (Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim()).length > 0 : t.customer) ? `<div style="font-size:11px;color:var(--acc);margin-top:4px">👤 Customer: ${Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim()).join(', ') : t.customer}</div>` : ''}
               ${(t.staff && t.staff.length > 0) || (t.manager && t.manager.length > 0) ? `
                 <div style="font-size:11px;color:var(--warn);margin-top:4px">
                   👥 ${t.staff && t.staff.length ? 'Staff: '+t.staff.join(', ') : ''} ${t.staff && t.staff.length && t.manager && t.manager.length ? ' | ' : ''} ${t.manager && t.manager.length ? 'Manager: '+t.manager.join(', ') : ''}
