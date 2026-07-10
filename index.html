@@ -170,6 +170,18 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
               <option value="overhead">🚆 Overhead (Train/Car)</option>
             </select>
           </div>
+          <div class="fg"><label class="lbl">Tipe Nota</label>
+            <select id="i-nota-type">
+              <option value="onsite">🏢 Onsite</option>
+              <option value="grab">🚕 Grab</option>
+              <option value="gojek">🏍️ Gojek</option>
+            </select>
+          </div>
+          <div class="fg"><label class="lbl">Member</label>
+            <select id="i-members" multiple style="min-height:80px">
+              <option value="all">📋 Semua</option>
+            </select>
+          </div>
           <div class="fg">
             <label class="lbl">Foto Bukti</label>
             <div class="photo-drop" id="photo-drop">
@@ -252,10 +264,14 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     </div>
     <div class="fg"><label class="lbl">Hari *</label><input type="number" id="m-days" placeholder="3" min="1" inputmode="numeric"/></div>
     <div class="fg"><label class="lbl">Nama Karyawan</label><input type="text" id="m-emp" placeholder="Nama lengkap"/></div>
-    <div class="row2">
-      <div class="fg"><label class="lbl">Staff</label><input type="number" id="m-staff" placeholder="0" min="0" inputmode="numeric"/></div>
-      <div class="fg"><label class="lbl">Manager</label><input type="number" id="m-manager" placeholder="0" min="0" inputmode="numeric"/></div>
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      👥 ANGGOTA PERJALANAN
     </div>
+    <div id="m-staff-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-gh btn-sm" id="m-add-staff" style="width:100%;margin-bottom:10px">+ Tambah Staff</button>
+    <div id="m-manager-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-gh btn-sm" id="m-add-manager" style="width:100%;margin-bottom:10px">+ Tambah Manager</button>
+    <div class="fg"><label class="lbl">Customer (Opsional)</label><input type="text" id="m-customer" placeholder="Nama customer/klien"/></div>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       📊 BUDGET PER KATEGORI
     </div>
@@ -308,6 +324,18 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
         <option value="overhead">🚆 Overhead (Train/Car)</option>
       </select>
     </div>
+    <div class="fg"><label class="lbl">Tipe Nota</label>
+      <select id="edit-nota-type">
+        <option value="onsite">🏢 Onsite</option>
+        <option value="grab">🚕 Grab</option>
+        <option value="gojek">🏍️ Gojek</option>
+      </select>
+    </div>
+    <div class="fg"><label class="lbl">Member</label>
+      <select id="edit-members" multiple style="min-height:80px">
+        <option value="all">📋 Semua</option>
+      </select>
+    </div>
     <div class="mbtns">
       <button class="btn btn-gh" style="flex:1" id="edit-cancel">Batal</button>
       <button class="btn btn-acc" style="flex:1" id="edit-save">Simpan</button>
@@ -348,7 +376,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -614,6 +642,22 @@ function openEditExpense(ti, expenseId) {
   document.getElementById('edit-amt').value = e.amount;
   document.getElementById('edit-date').value = e.date;
   document.getElementById('edit-cat').value = e.cat;
+  document.getElementById('edit-nota-type').value = e.nota_type || 'onsite';
+
+  // Set members
+  const editMemberSel = document.getElementById('edit-members');
+  const allMembers = [...(t.staff || []), ...(t.manager || [])];
+  editMemberSel.innerHTML = '<option value="all">📋 Semua</option>' + allMembers.map(name => `<option value="${name}">${name}</option>`).join('');
+
+  if (e.selected_members && e.selected_members.length > 0) {
+    e.selected_members.forEach(member => {
+      const opt = editMemberSel.querySelector(`option[value="${member}"]`);
+      if (opt) opt.selected = true;
+    });
+  } else {
+    const allOpt = editMemberSel.querySelector(`option[value="all"]`);
+    if (allOpt) allOpt.selected = true;
+  }
 
   openModal('m-edit-expense');
 }
@@ -631,10 +675,16 @@ document.getElementById('edit-save').addEventListener('click', () => {
   const newAmount = parseFloat(document.getElementById('edit-amt').value);
   const newDate = document.getElementById('edit-date').value;
   const newCat = document.getElementById('edit-cat').value;
+  const newNotaType = document.getElementById('edit-nota-type').value;
+
+  // Get selected members
+  const editMemberSel = document.getElementById('edit-members');
+  const newMembers = Array.from(editMemberSel.selectedOptions).map(o => o.value);
 
   if (!newDesc) { toast('Isi keterangan.'); return; }
   if (!newAmount || newAmount <= 0) { toast('Isi jumlah yang valid.'); return; }
   if (!newDate) { toast('Pilih tanggal.'); return; }
+  if (newMembers.length === 0) { toast('Pilih minimal 1 member.'); return; }
 
   // Validate budget
   const err = validate(t, newCat, newAmount, newDate, editingExpenseId);
@@ -645,6 +695,8 @@ document.getElementById('edit-save').addEventListener('click', () => {
   e.amount = newAmount;
   e.date = newDate;
   e.cat = newCat;
+  e.nota_type = newNotaType;
+  e.selected_members = newMembers;
 
   save();
   closeModal('m-edit-expense');
@@ -662,11 +714,65 @@ function openModal(id) { document.getElementById(id).classList.add('on'); }
 function closeModal(id) { document.getElementById(id).classList.remove('on'); }
 
 // ── TRIP MODAL ────────────────────────────────────────────────────────────────
+let tripStaffList = [];
+let tripManagerList = [];
+
+function renderStaffList() {
+  const container = document.getElementById('m-staff-list');
+  if (tripStaffList.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = tripStaffList.map((name, i) => `
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;">
+      <input type="text" value="${name}" onchange="tripStaffList[${i}] = this.value" placeholder="Nama staff" style="flex:1;padding:8px"/>
+      <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripStaffList.splice(${i},1); renderStaffList()">×</button>
+    </div>
+  `).join('');
+}
+
+function renderManagerList() {
+  const container = document.getElementById('m-manager-list');
+  if (tripManagerList.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = tripManagerList.map((name, i) => `
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;">
+      <input type="text" value="${name}" onchange="tripManagerList[${i}] = this.value" placeholder="Nama manager" style="flex:1;padding:8px"/>
+      <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripManagerList.splice(${i},1); renderManagerList()">×</button>
+    </div>
+  `).join('');
+}
+
 document.getElementById('btn-new-trip').addEventListener('click', () => {
+  ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => document.getElementById(id).value = '');
+  tripStaffList = [];
+  tripManagerList = [];
+  renderStaffList();
+  renderManagerList();
   ['m-name','m-emp','m-staff','m-manager','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('m-total-budget').textContent = 'Rp 0';
   openModal('m-trip');
   setTimeout(() => document.getElementById('m-name').focus(), 100);
+});
+
+document.getElementById('m-add-staff').addEventListener('click', () => {
+  tripStaffList.push('');
+  renderStaffList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#m-staff-list input');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
+});
+
+document.getElementById('m-add-manager').addEventListener('click', () => {
+  tripManagerList.push('');
+  renderManagerList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#m-manager-list input');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
 });
 
 // Budget auto-calculation
@@ -697,8 +803,9 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   }
 
   const emp     = document.getElementById('m-emp').value.trim();
-  const staff   = parseInt(document.getElementById('m-staff').value) || 0;
-  const manager = parseInt(document.getElementById('m-manager').value) || 0;
+  const customer = document.getElementById('m-customer').value.trim();
+  const staff   = tripStaffList.filter(s => s.trim() !== '');
+  const manager = tripManagerList.filter(m => m.trim() !== '');
   const days    = parseInt(document.getElementById('m-days').value);
   const bTransport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
   const bFood = parseFloat(document.getElementById('m-budget-food').value) || 0;
@@ -709,11 +816,11 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
 
   if (!name) { toast('Nama perjalanan wajib diisi.'); return; }
   if (!days || days <= 0) { toast('Jumlah hari harus lebih dari 0.'); return; }
-  if (staff === 0 && manager === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
+  if (staff.length === 0 && manager.length === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
   if (totalBudget <= 0) { toast('Minimal ada 1 kategori budget yang diisi.'); return; }
 
   trips.push({
-    name, dest, employee: emp, staff, manager, days,
+    name, dest, employee: emp, customer, staff, manager, days,
     budgets: { transport: bTransport, food: bFood, dest_transport: bDest, overhead: bOverhead, entertainment: bEntertain },
     expenses: [],
     created: todayStr()
@@ -916,9 +1023,17 @@ document.getElementById('btn-add').addEventListener('click', () => {
   const amount = parseFloat(document.getElementById('i-amt').value);
   const date   = document.getElementById('i-date').value;
   const cat    = document.getElementById('i-cat').value;
+  const notaType = document.getElementById('i-nota-type').value;
+
+  // Get selected members
+  const memberSelect = document.getElementById('i-members');
+  const selectedMembers = Array.from(memberSelect.selectedOptions).map(o => o.value);
+
   if (!desc)              { toast('Isi keterangan.'); return; }
   if (!amount || amount<=0){ toast('Isi jumlah yang valid.'); return; }
   if (!date)              { toast('Pilih tanggal.'); return; }
+  if (selectedMembers.length === 0) { toast('Pilih minimal 1 member.'); return; }
+
   const err = validate(t, cat, amount, date);
   if (err) { toast('⚠️ ' + err); return; }
 
@@ -928,6 +1043,8 @@ document.getElementById('btn-add').addEventListener('click', () => {
 
   const expenseObj = {
     id: Date.now(), desc, amount, date, cat,
+    nota_type: notaType,
+    selected_members: selectedMembers,
     proof: photoB64,
     geo: expenseGeo,
     photoTime: expenseTime,
@@ -946,6 +1063,8 @@ document.getElementById('btn-add').addEventListener('click', () => {
   save();
   document.getElementById('i-desc').value = '';
   document.getElementById('i-amt').value  = '';
+  document.getElementById('i-nota-type').value = 'onsite';
+  memberSelect.value = '';
   clearPhoto();
   renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
   updatePhotoCapacity();
@@ -953,6 +1072,33 @@ document.getElementById('btn-add').addEventListener('click', () => {
 });
 
 // ── TRIP SELECT ───────────────────────────────────────────────────────────────
+function updateMemberDropdown() {
+  const t = trip();
+  if (!t) return;
+
+  const memberSel = document.getElementById('i-members');
+  const editMemberSel = document.getElementById('edit-members');
+
+  // Get all members
+  const allMembers = [...(t.staff || []), ...(t.manager || [])];
+  const memberOptions = allMembers.map(name => `<option value="${name}">${name}</option>`).join('');
+
+  // Update main form
+  if (memberSel) {
+    memberSel.innerHTML = '<option value="all">📋 Semua</option>' + memberOptions;
+  }
+
+  // Update edit form (keep current selections if available)
+  if (editMemberSel) {
+    const current = Array.from(editMemberSel.selectedOptions).map(o => o.value);
+    editMemberSel.innerHTML = '<option value="all">📋 Semua</option>' + memberOptions;
+    current.forEach(c => {
+      const opt = editMemberSel.querySelector(`option[value="${c}"]`);
+      if (opt) opt.selected = true;
+    });
+  }
+}
+
 function refreshTripSel() {
   const sel = document.getElementById('trip-sel');
   sel.innerHTML = '<option value="">— Pilih atau buat trip —</option>';
@@ -968,6 +1114,7 @@ document.getElementById('trip-sel').addEventListener('change', function() {
   save();
   updatePhotoCapacity();
   updateBadge();
+  updateMemberDropdown();
   showTripBody(activeIdx >= 0);
   if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
 });
@@ -1041,6 +1188,21 @@ function eCard(e, ti) {
   const c = CATS[e.cat]||CATS.overhead;
   let proofInfo = '';
   let geoInfo = '';
+  let memberInfo = '';
+  let notaInfo = '';
+
+  // Member info
+  if (e.selected_members && e.selected_members.length > 0) {
+    const memberText = e.selected_members.includes('all') ? 'Semua' : e.selected_members.join(', ');
+    memberInfo = `<div style="font-size:10px;color:var(--acc);margin-top:4px;">👥 ${memberText}</div>`;
+  }
+
+  // Nota type info
+  if (e.nota_type) {
+    const notaEmoji = {onsite: '🏢', grab: '🚕', gojek: '🏍️'}[e.nota_type] || '📋';
+    const notaLabel = {onsite: 'Onsite', grab: 'Grab', gojek: 'Gojek'}[e.nota_type] || e.nota_type;
+    notaInfo = `<div style="font-size:10px;color:var(--warn);margin-top:2px;">${notaEmoji} ${notaLabel}</div>`;
+  }
 
   // Foto info
   if (e.proof) {
@@ -1068,7 +1230,7 @@ function eCard(e, ti) {
   }
 
   const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${proofInfo}</div>` : '';
-  const geoSection = geoInfo ? `<div style="margin-top:${e.proof?8:0}px;">${geoInfo}</div>` : '';
+  const extraInfo = memberInfo + notaInfo + geoInfo ? `<div style="margin-top:${e.proof?8:0}px;">${memberInfo}${notaInfo}${geoInfo}</div>` : '';
 
   return `<div class="eitem">
     <div class="etop">
@@ -1081,7 +1243,7 @@ function eCard(e, ti) {
         <button class="edel" style="font-size:16px;padding:2px 6px" onclick="openEditExpense(${ti},${e.id})">✎</button>
         <button class="edel" onclick="askDelete(${ti},${e.id},'${e.desc.replace(/'/g,"\\'")}')">×</button>
       </div>
-    </div>${proof}${geoSection}
+    </div>${proof}${extraInfo}
   </div>`;
 }
 
@@ -1203,7 +1365,7 @@ async function exportPDF(ti) {
   const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
   const rem   = totalBudget - spent;
 
-  doc.setFillColor(26,26,46); doc.rect(0,0,W,42,'F');
+  doc.setFillColor(26,26,46); doc.rect(0,0,W,50,'F');
   doc.setTextColor(255,255,255);
   doc.setFontSize(18);doc.setFont(undefined,'bold');
   doc.text('LAPORAN PERJALANAN DINAS',M,16);
@@ -1211,7 +1373,23 @@ async function exportPDF(ti) {
   doc.text(t.name,M,24);
   doc.text((t.dest||'')+(t.employee?' | '+t.employee:''),M,30);
   doc.text('Dicetak: '+new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),M,36);
-  y=52;
+
+  // Add members and customer info if available
+  let memberInfo = '';
+  if (t.staff && t.staff.length > 0) memberInfo += 'Staff: ' + t.staff.join(', ');
+  if (t.manager && t.manager.length > 0) {
+    if (memberInfo) memberInfo += ' | ';
+    memberInfo += 'Manager: ' + t.manager.join(', ');
+  }
+  if (t.customer) {
+    if (memberInfo) memberInfo += ' | ';
+    memberInfo += 'Customer: ' + t.customer;
+  }
+  if (memberInfo) {
+    doc.setFontSize(8);
+    doc.text(memberInfo, M, 42);
+  }
+  y=56;
 
   doc.setFillColor(245,247,250);doc.rect(M,y,W-M*2,28,'F');
   const cs=[M+2,68,118,162];
@@ -1246,6 +1424,24 @@ async function exportPDF(ti) {
     doc.setFont(undefined,'bold');doc.text(fmtRp(e.amount),tc[4],y+5);
     doc.setFont(undefined,'normal');
     y+=9;
+
+    // Add member and nota type info below row
+    let metaStr = '';
+    if (e.selected_members && e.selected_members.length > 0) {
+      const memberText = e.selected_members.includes('all') ? 'Semua' : e.selected_members.join(', ');
+      metaStr += '👥 ' + memberText;
+    }
+    if (e.nota_type) {
+      if (metaStr) metaStr += ' | ';
+      const notaEmoji = {onsite: '🏢', grab: '🚕', gojek: '🏍️'}[e.nota_type] || '📋';
+      const notaLabel = {onsite: 'Onsite', grab: 'Grab', gojek: 'Gojek'}[e.nota_type] || e.nota_type;
+      metaStr += notaEmoji + ' ' + notaLabel;
+    }
+    if (metaStr) {
+      doc.setTextColor(100,100,100);doc.setFontSize(7);
+      doc.text(metaStr, M+2, y+2);
+      y+=4;
+    }
 
     // Tambahkan geolocation detail di bawah row
     if(e.geo) {
@@ -1327,7 +1523,7 @@ function exportTrip(idx) {
   if (!t) return;
 
   const backup = {
-    version: 1,
+    version: 2,
     appVersion: APP_VERSION,
     exportDate: new Date().toISOString(),
     trip: {
@@ -1336,6 +1532,7 @@ function exportTrip(idx) {
       employee: t.employee,
       staff: t.staff,
       manager: t.manager,
+      customer: t.customer,
       days: t.days,
       budgets: t.budgets,
       created: t.created
@@ -1445,7 +1642,11 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
 
   const newTrip = {
     ...data.trip,
-    expenses: data.expenses,
+    // Ensure new fields exist
+    customer: data.trip.customer || '',
+    staff: Array.isArray(data.trip.staff) ? data.trip.staff : (typeof data.trip.staff === 'number' ? [] : data.trip.staff || []),
+    manager: Array.isArray(data.trip.manager) ? data.trip.manager : (typeof data.trip.manager === 'number' ? [] : data.trip.manager || []),
+    expenses: data.expenses || [],
     created: data.trip.created || new Date().toISOString()
   };
 
@@ -1566,7 +1767,7 @@ function goTab(name) {
   document.querySelectorAll('.nv').forEach(el=>el.classList.remove('on'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nv-'+name).classList.add('on');
-  if(name==='add')     updatePhotoCapacity();
+  if(name==='add')     { updatePhotoCapacity(); updateMemberDropdown(); }
   if(name==='summary') renderSummary();
   if(name==='all')     renderAll();
   if(name==='export')  renderExport();
