@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20250704-updated -->
+<!-- Cache busting: v20250710-v2.6-member-tracking -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -746,18 +746,25 @@ function renderManagerList() {
 }
 
 document.getElementById('btn-new-trip').addEventListener('click', () => {
-  ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  try {
+    ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const totalBudgetEl = document.getElementById('m-total-budget');
+    if (totalBudgetEl) totalBudgetEl.textContent = 'Rp 0';
+  } catch(e) {
+    console.warn('Error initializing trip form:', e);
+  }
   tripStaffList = [];
   tripManagerList = [];
   renderStaffList();
   renderManagerList();
-  ['m-name','m-emp','m-staff','m-manager','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('m-total-budget').textContent = 'Rp 0';
   openModal('m-trip');
-  setTimeout(() => document.getElementById('m-name').focus(), 100);
+  setTimeout(() => {
+    const nameEl = document.getElementById('m-name');
+    if (nameEl) nameEl.focus();
+  }, 100);
 });
 
 const addStaffBtn = document.getElementById('m-add-staff');
