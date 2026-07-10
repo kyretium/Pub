@@ -815,8 +815,14 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
 
   const emp     = document.getElementById('m-emp').value.trim();
   const customer = document.getElementById('m-customer').value.trim();
-  const staff   = tripStaffList.filter(s => s.trim() !== '');
-  const manager = tripManagerList.filter(m => m.trim() !== '');
+  let staff   = tripStaffList.filter(s => s.trim() !== '');
+  let manager = tripManagerList.filter(m => m.trim() !== '');
+
+  // Tambahkan nama karyawan utama ke staff list jika tidak kosong dan belum ada
+  if (emp && !staff.includes(emp) && !manager.includes(emp)) {
+    staff.unshift(emp); // Tambah di awal sebagai staff utama
+  }
+
   const days    = parseInt(document.getElementById('m-days').value);
   const bTransport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
   const bFood = parseFloat(document.getElementById('m-budget-food').value) || 0;
