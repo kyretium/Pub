@@ -146,7 +146,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div id="tab-add" class="tab-view active">
       <div class="fg">
         <label class="lbl">Pilih Perjalanan</label>
-        <select id="trip-sel"></select>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <select id="trip-sel" style="flex:1;"></select>
+          <button class="btn btn-gh btn-sm" id="btn-del-trip" style="margin-bottom:0;padding:11px 10px;" title="Hapus trip">🗑️</button>
+        </div>
       </div>
       <div id="no-trip" class="empty"><div class="ei">🗺️</div><p>Ketuk <b>+ Trip</b> di atas untuk mulai.</p></div>
       <div id="trip-body" style="display:none">
@@ -254,11 +257,12 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 <div class="mover" id="m-trip">
   <div class="mbox">
     <h2>Perjalanan Baru</h2>
-    <div class="fg"><label class="lbl">Nama Perjalanan *</label><input type="text" id="m-name" placeholder="Dinas Jakarta Juni 2025"/></div>
-    <div class="row2">
-      <div class="fg"><label class="lbl">Tujuan</label><input type="text" id="m-dest" placeholder="Jakarta"/></div>
-      <div class="fg"><label class="lbl">Hari *</label><input type="number" id="m-days" placeholder="3" min="1" inputmode="numeric"/></div>
+    <div class="fg">
+      <label class="lbl">Nama Perjalanan & Tujuan *</label>
+      <input type="text" id="m-name" placeholder="Contoh: Dinas Jakarta Juni 2025 → Jakarta"/>
+      <div style="font-size:10px;color:var(--mu);margin-top:4px;">Gunakan → untuk memisahkan nama dan tujuan</div>
     </div>
+    <div class="fg"><label class="lbl">Hari *</label><input type="number" id="m-days" placeholder="3" min="1" inputmode="numeric"/></div>
     <div class="fg"><label class="lbl">Nama Karyawan</label><input type="text" id="m-emp" placeholder="Nama lengkap"/></div>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       👥 ANGGOTA PERJALANAN
@@ -747,6 +751,7 @@ document.getElementById('btn-new-trip').addEventListener('click', () => {
   tripManagerList = [];
   renderStaffList();
   renderManagerList();
+  ['m-name','m-emp','m-staff','m-manager','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('m-total-budget').textContent = 'Rp 0';
   openModal('m-trip');
   setTimeout(() => document.getElementById('m-name').focus(), 100);
@@ -786,8 +791,17 @@ document.getElementById('m-trip-cancel').addEventListener('click', () => closeMo
 document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
 
 document.getElementById('m-trip-ok').addEventListener('click', () => {
-  const name    = document.getElementById('m-name').value.trim();
-  const dest    = document.getElementById('m-dest').value.trim();
+  const fullInput = document.getElementById('m-name').value.trim();
+  let name = fullInput;
+  let dest = '';
+
+  // Parse "Nama → Tujuan" format
+  if (fullInput.includes('→')) {
+    const parts = fullInput.split('→');
+    name = parts[0].trim();
+    dest = parts[1].trim();
+  }
+
   const emp     = document.getElementById('m-emp').value.trim();
   const customer = document.getElementById('m-customer').value.trim();
   const staff   = tripStaffList.filter(s => s.trim() !== '');
@@ -1103,6 +1117,27 @@ document.getElementById('trip-sel').addEventListener('change', function() {
   updateMemberDropdown();
   showTripBody(activeIdx >= 0);
   if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+});
+
+document.getElementById('btn-del-trip').addEventListener('click', () => {
+  if (activeIdx < 0) { toast('Pilih trip dulu.'); return; }
+  const t = trips[activeIdx];
+  document.getElementById('m-confirm-desc').textContent = `Hapus trip "${t.name}"? Data tidak dapat dikembalikan.`;
+  const btnYes = document.getElementById('m-confirm-yes');
+  btnYes.onclick = () => {
+    trips.splice(activeIdx, 1);
+    activeIdx = -1;
+    save();
+    closeModal('m-confirm');
+    refreshTripSel();
+    updateBadge();
+    showTripBody(false);
+    renderSummary();
+    renderAll();
+    renderExport();
+    toast('Trip berhasil dihapus.', 'ok');
+  };
+  openModal('m-confirm');
 });
 function showTripBody(show) {
   document.getElementById('no-trip').style.display   = show ? 'none' : '';
