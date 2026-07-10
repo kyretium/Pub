@@ -177,10 +177,9 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
               <option value="gojek">🏍️ Gojek</option>
             </select>
           </div>
-          <div class="fg"><label class="lbl">Member</label>
-            <select id="i-members" multiple style="min-height:80px">
-              <option value="all">📋 Semua</option>
-            </select>
+          <div class="fg">
+            <label class="lbl">Member</label>
+            <div id="i-members-list" style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--bd);max-height:150px;overflow-y:auto"></div>
           </div>
           <div class="fg">
             <label class="lbl">Foto Bukti</label>
@@ -331,10 +330,9 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
         <option value="gojek">🏍️ Gojek</option>
       </select>
     </div>
-    <div class="fg"><label class="lbl">Member</label>
-      <select id="edit-members" multiple style="min-height:80px">
-        <option value="all">📋 Semua</option>
-      </select>
+    <div class="fg">
+      <label class="lbl">Member</label>
+      <div id="edit-members-list" style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--bd);max-height:150px;overflow-y:auto"></div>
     </div>
     <div class="mbtns">
       <button class="btn btn-gh" style="flex:1" id="edit-cancel">Batal</button>
@@ -644,20 +642,15 @@ function openEditExpense(ti, expenseId) {
   document.getElementById('edit-cat').value = e.cat;
   document.getElementById('edit-nota-type').value = e.nota_type || 'onsite';
 
-  // Set members
-  const editMemberSel = document.getElementById('edit-members');
+  // Populate member checkboxes
   const allMembers = [...(t.staff || []), ...(t.manager || [])];
-  editMemberSel.innerHTML = '<option value="all">📋 Semua</option>' + allMembers.map(name => `<option value="${name}">${name}</option>`).join('');
-
-  if (e.selected_members && e.selected_members.length > 0) {
-    e.selected_members.forEach(member => {
-      const opt = editMemberSel.querySelector(`option[value="${member}"]`);
-      if (opt) opt.selected = true;
-    });
-  } else {
-    const allOpt = editMemberSel.querySelector(`option[value="all"]`);
-    if (allOpt) allOpt.selected = true;
-  }
+  const editList = document.getElementById('edit-members-list');
+  editList.innerHTML = allMembers.map(name => `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
+      <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer" ${e.selected_members && e.selected_members.includes(name) ? 'checked' : ''}/>
+      <span>${name}</span>
+    </label>
+  `).join('');
 
   openModal('m-edit-expense');
 }
@@ -678,8 +671,7 @@ document.getElementById('edit-save').addEventListener('click', () => {
   const newNotaType = document.getElementById('edit-nota-type').value;
 
   // Get selected members
-  const editMemberSel = document.getElementById('edit-members');
-  const newMembers = Array.from(editMemberSel.selectedOptions).map(o => o.value);
+  const newMembers = getEditSelectedMembers();
 
   if (!newDesc) { toast('Isi keterangan.'); return; }
   if (!newAmount || newAmount <= 0) { toast('Isi jumlah yang valid.'); return; }
@@ -1045,8 +1037,7 @@ document.getElementById('btn-add').addEventListener('click', () => {
   const notaType = document.getElementById('i-nota-type').value;
 
   // Get selected members
-  const memberSelect = document.getElementById('i-members');
-  const selectedMembers = Array.from(memberSelect.selectedOptions).map(o => o.value);
+  const selectedMembers = getSelectedMembers();
 
   if (!desc)              { toast('Isi keterangan.'); return; }
   if (!amount || amount<=0){ toast('Isi jumlah yang valid.'); return; }
@@ -1083,7 +1074,7 @@ document.getElementById('btn-add').addEventListener('click', () => {
   document.getElementById('i-desc').value = '';
   document.getElementById('i-amt').value  = '';
   document.getElementById('i-nota-type').value = 'onsite';
-  memberSelect.value = '';
+  document.querySelectorAll('#i-members-list .member-checkbox').forEach(cb => cb.checked = false);
   clearPhoto();
   renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
   updatePhotoCapacity();
@@ -1091,31 +1082,43 @@ document.getElementById('btn-add').addEventListener('click', () => {
 });
 
 // ── TRIP SELECT ───────────────────────────────────────────────────────────────
-function updateMemberDropdown() {
+function updateMemberCheckboxes() {
   const t = trip();
   if (!t) return;
 
-  const memberSel = document.getElementById('i-members');
-  const editMemberSel = document.getElementById('edit-members');
-
-  // Get all members
   const allMembers = [...(t.staff || []), ...(t.manager || [])];
-  const memberOptions = allMembers.map(name => `<option value="${name}">${name}</option>`).join('');
 
   // Update main form
-  if (memberSel) {
-    memberSel.innerHTML = '<option value="all">📋 Semua</option>' + memberOptions;
+  const mainList = document.getElementById('i-members-list');
+  if (mainList) {
+    mainList.innerHTML = allMembers.map(name => `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
+        <input type="checkbox" value="${name}" class="member-checkbox" style="cursor:pointer"/>
+        <span>${name}</span>
+      </label>
+    `).join('');
   }
 
-  // Update edit form (keep current selections if available)
-  if (editMemberSel) {
-    const current = Array.from(editMemberSel.selectedOptions).map(o => o.value);
-    editMemberSel.innerHTML = '<option value="all">📋 Semua</option>' + memberOptions;
-    current.forEach(c => {
-      const opt = editMemberSel.querySelector(`option[value="${c}"]`);
-      if (opt) opt.selected = true;
-    });
+  // Update edit form
+  const editList = document.getElementById('edit-members-list');
+  if (editList) {
+    editList.innerHTML = allMembers.map(name => `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
+        <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer"/>
+        <span>${name}</span>
+      </label>
+    `).join('');
   }
+}
+
+function getSelectedMembers() {
+  const checkboxes = document.querySelectorAll('#i-members-list .member-checkbox:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function getEditSelectedMembers() {
+  const checkboxes = document.querySelectorAll('#edit-members-list .edit-member-checkbox:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
 }
 
 function refreshTripSel() {
@@ -1133,7 +1136,7 @@ document.getElementById('trip-sel').addEventListener('change', function() {
   save();
   updatePhotoCapacity();
   updateBadge();
-  updateMemberDropdown();
+  updateMemberCheckboxes();
   showTripBody(activeIdx >= 0);
   if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
 });
@@ -1758,6 +1761,12 @@ function renderHistory() {
             <div>
               <div class="edesc">${t.name}${t.dest?' · '+t.dest:''}</div>
               <div class="emeta">${t.employee || 'Tanpa nama'} · ${t.days} hari · Dibuat ${created}</div>
+              ${t.customer ? `<div style="font-size:11px;color:var(--acc);margin-top:4px">👤 Customer: ${t.customer}</div>` : ''}
+              ${(t.staff && t.staff.length > 0) || (t.manager && t.manager.length > 0) ? `
+                <div style="font-size:11px;color:var(--warn);margin-top:4px">
+                  👥 ${t.staff && t.staff.length ? 'Staff: '+t.staff.join(', ') : ''} ${t.staff && t.staff.length && t.manager && t.manager.length ? ' | ' : ''} ${t.manager && t.manager.length ? 'Manager: '+t.manager.join(', ') : ''}
+                </div>
+              ` : ''}
             </div>
           </div>
         </div>
@@ -1786,7 +1795,7 @@ function goTab(name) {
   document.querySelectorAll('.nv').forEach(el=>el.classList.remove('on'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('nv-'+name).classList.add('on');
-  if(name==='add')     { updatePhotoCapacity(); updateMemberDropdown(); }
+  if(name==='add')     { updatePhotoCapacity(); updateMemberCheckboxes(); }
   if(name==='summary') renderSummary();
   if(name==='all')     renderAll();
   if(name==='export')  renderExport();
