@@ -746,7 +746,10 @@ function renderManagerList() {
 }
 
 document.getElementById('btn-new-trip').addEventListener('click', () => {
-  ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => document.getElementById(id).value = '');
+  ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain','m-customer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   tripStaffList = [];
   tripManagerList = [];
   renderStaffList();
@@ -757,35 +760,44 @@ document.getElementById('btn-new-trip').addEventListener('click', () => {
   setTimeout(() => document.getElementById('m-name').focus(), 100);
 });
 
-document.getElementById('m-add-staff').addEventListener('click', () => {
-  tripStaffList.push('');
-  renderStaffList();
-  setTimeout(() => {
-    const inputs = document.querySelectorAll('#m-staff-list input');
-    if (inputs.length > 0) inputs[inputs.length - 1].focus();
-  }, 0);
-});
+const addStaffBtn = document.getElementById('m-add-staff');
+if (addStaffBtn) {
+  addStaffBtn.addEventListener('click', () => {
+    tripStaffList.push('');
+    renderStaffList();
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('#m-staff-list input');
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 0);
+  });
+}
 
-document.getElementById('m-add-manager').addEventListener('click', () => {
-  tripManagerList.push('');
-  renderManagerList();
-  setTimeout(() => {
-    const inputs = document.querySelectorAll('#m-manager-list input');
-    if (inputs.length > 0) inputs[inputs.length - 1].focus();
-  }, 0);
-});
+const addManagerBtn = document.getElementById('m-add-manager');
+if (addManagerBtn) {
+  addManagerBtn.addEventListener('click', () => {
+    tripManagerList.push('');
+    renderManagerList();
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('#m-manager-list input');
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 0);
+  });
+}
 
 // Budget auto-calculation
 ['m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    const transport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
-    const food = parseFloat(document.getElementById('m-budget-food').value) || 0;
-    const dest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
-    const overhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
-    const entertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
-    const total = transport + food + dest + overhead + entertain;
-    document.getElementById('m-total-budget').textContent = 'Rp ' + Math.round(total).toLocaleString('id-ID');
-  });
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', () => {
+      const transport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
+      const food = parseFloat(document.getElementById('m-budget-food').value) || 0;
+      const dest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
+      const overhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
+      const entertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+      const total = transport + food + dest + overhead + entertain;
+      document.getElementById('m-total-budget').textContent = 'Rp ' + Math.round(total).toLocaleString('id-ID');
+    });
+  }
 });
 document.getElementById('m-trip-cancel').addEventListener('click', () => closeModal('m-trip'));
 document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
