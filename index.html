@@ -1091,7 +1091,12 @@ function updateMemberCheckboxes() {
   // Update main form
   const mainList = document.getElementById('i-members-list');
   if (mainList) {
-    mainList.innerHTML = allMembers.map(name => `
+    mainList.innerHTML = `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;background:rgba(79,142,247,0.1)">
+        <input type="checkbox" id="select-all-members" style="cursor:pointer" onchange="toggleAllMembers()"/>
+        <span style="font-weight:600">Semua (${allMembers.length})</span>
+      </label>
+    ` + allMembers.map(name => `
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
         <input type="checkbox" value="${name}" class="member-checkbox" style="cursor:pointer"/>
         <span>${name}</span>
@@ -1102,13 +1107,30 @@ function updateMemberCheckboxes() {
   // Update edit form
   const editList = document.getElementById('edit-members-list');
   if (editList) {
-    editList.innerHTML = allMembers.map(name => `
+    editList.innerHTML = `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;background:rgba(79,142,247,0.1)">
+        <input type="checkbox" id="select-all-edit-members" style="cursor:pointer" onchange="toggleAllEditMembers()"/>
+        <span style="font-weight:600">Semua (${allMembers.length})</span>
+      </label>
+    ` + allMembers.map(name => `
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
         <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer"/>
         <span>${name}</span>
       </label>
     `).join('');
   }
+}
+
+function toggleAllMembers() {
+  const selectAll = document.getElementById('select-all-members');
+  const checkboxes = document.querySelectorAll('#i-members-list .member-checkbox');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function toggleAllEditMembers() {
+  const selectAll = document.getElementById('select-all-edit-members');
+  const checkboxes = document.querySelectorAll('#edit-members-list .edit-member-checkbox');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
 }
 
 function getSelectedMembers() {
@@ -1136,9 +1158,12 @@ document.getElementById('trip-sel').addEventListener('change', function() {
   save();
   updatePhotoCapacity();
   updateBadge();
-  updateMemberCheckboxes();
   showTripBody(activeIdx >= 0);
-  if (activeIdx >= 0) { renderBudgetBar(); renderTodayList(); }
+  if (activeIdx >= 0) {
+    renderBudgetBar();
+    renderTodayList();
+    updateMemberCheckboxes(); // Populate member checkboxes saat trip dipilih
+  }
 });
 
 document.getElementById('btn-del-trip').addEventListener('click', () => {
