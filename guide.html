@@ -58,14 +58,23 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
       <li><strong>Buka aplikasi</strong> → Klik tombol <span style="background:var(--card2);padding:2px 8px;border-radius:4px;">+ Trip</span> di atas</li>
       <li><strong>Isi informasi trip</strong>
         <ul style="margin-top:8px;margin-left:20px;color:var(--mu);">
-          <li>Nama perjalanan (contoh: "Dinas Jakarta Juni 2025")</li>
-          <li>Tujuan (contoh: "Jakarta")</li>
-          <li>Nama karyawan</li>
-          <li>Jumlah staff dan manager yang berangkat</li>
-          <li>Total budget</li>
+          <li>📝 Nama perjalanan (contoh: "Dinas Jakarta Juni 2025")</li>
+          <li>📍 Tujuan (contoh: "Jakarta")</li>
+          <li>👤 Nama karyawan utama</li>
+          <li>👥 <strong>Nama staff & manager</strong> - klik "+ Tambah Staff" dan "+ Tambah Manager" untuk menambah satu per satu</li>
+          <li>🤝 Customer (opsional) - untuk pihak ketiga yang ikut perjalanan</li>
+          <li>💰 Budget per kategori (Transport, Food, Tujuan, Overhead, Entertainment)</li>
         </ul>
       </li>
-      <li><strong>Tambah pengeluaran</strong> di tab "Tambah"</li>
+      <li><strong>Pilih trip di tab "Tambah"</strong> → Member checkbox otomatis muncul</li>
+      <li><strong>Tambah pengeluaran</strong>
+        <ul style="margin-top:8px;margin-left:20px;color:var(--mu);">
+          <li>Isi keterangan dan jumlah</li>
+          <li>📋 Pilih tipe nota: Onsite / Grab / Gojek</li>
+          <li>☑️ Centang member yang menggunakan (atau "Semua")</li>
+          <li>📷 Ambil/upload foto bukti</li>
+        </ul>
+      </li>
       <li><strong>Lihat ringkasan</strong> di tab "Ringkasan"</li>
       <li><strong>Export PDF</strong> di tab "Export"</li>
     </ol>
@@ -115,22 +124,26 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
           Contoh: "Dinas Jakarta Juni 2025" atau "Kunjungan Klien Bandung"<br/><br/>
           <strong>Tujuan</strong> (opsional)<br/>
           Contoh: "Jakarta", "Bandung"<br/><br/>
-          <strong>Nama Karyawan</strong> (opsional)<br/>
-          Nama yang melakukan perjalanan<br/><br/>
-          <strong>Jumlah Staff</strong> (wajib)<br/>
-          Berapa banyak staff yang berangkat (0 atau lebih)<br/><br/>
-          <strong>Jumlah Manager</strong> (wajib)<br/>
-          Berapa banyak manager yang berangkat (0 atau lebih)<br/><br/>
-          <strong>Total Budget *</strong> (wajib)<br/>
-          Contoh: 5000000 (untuk 5 juta rupiah)
+          <strong>Nama Karyawan Utama</strong> (opsional)<br/>
+          Nama orang yang melakukan perjalanan. <span style="color:var(--ok)"><strong>⭐ Otomatis masuk ke daftar member/staff</strong></span><br/><br/>
+          <strong>👥 Anggota Perjalanan (Baru v2.7!)</strong><br/>
+          <span style="font-size:12px;color:var(--mu);">Masukkan nama staff dan manager satu per satu:</span><br/>
+          • Klik "+ Tambah Staff" → Isi nama staff<br/>
+          • Klik "+ Tambah Manager" → Isi nama manager<br/>
+          Contoh: Fajar, Reza, Budi, dll.<br/><br/>
+          <strong>🤝 Customer</strong> (opsional - v2.7)<br/>
+          Nama customer/klien yang ikut perjalanan. Akan ditampilkan di laporan.<br/><br/>
+          <strong>💰 Budget Per Kategori *</strong> (wajib)<br/>
+          Alokasikan budget untuk: Transport, Food, Tujuan, Overhead, Entertainment<br/>
+          Contoh: Transport 500.000, Food 1.500.000, dll.
         </div>
       </li>
       <li>Klik <span style="background:var(--acc);padding:2px 8px;border-radius:4px;color:#fff;">Buat Trip</span></li>
     </ol>
 
-    <h3>2. Menambah Pengeluaran</h3>
+    <h3>2. Menambah Pengeluaran (dengan Member Tracking v2.7)</h3>
     <ol class="steps">
-      <li>Pilih trip di dropdown "Pilih Perjalanan"</li>
+      <li>Pilih trip di dropdown "Pilih Perjalanan" → Member checkbox otomatis muncul ✓</li>
       <li>Isi informasi pengeluaran:
         <div class="feature">
           <strong>Keterangan *</strong><br/>
@@ -140,15 +153,22 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
           <strong>Tanggal *</strong><br/>
           Tanggal pengeluaran (default: hari ini)<br/><br/>
           <strong>Kategori</strong><br/>
-          Pilih kategori pengeluaran (lihat tabel di bawah)
+          Pilih kategori pengeluaran (Transport, Food, Tujuan, Overhead, Entertainment)<br/><br/>
+          <strong>📋 Tipe Nota (Baru v2.7!)</strong><br/>
+          Pilih: 🏢 Onsite / 🚕 Grab / 🏍️ Gojek<br/><br/>
+          <strong>☑️ Member (Baru v2.7!)</strong><br/>
+          • Klik "<strong>Semua</strong>" untuk select semua member sekaligus<br/>
+          • Atau centang individual member yang menggunakan nota<br/>
+          • Minimal pilih 1 member
         </div>
       </li>
       <li>Upload foto bukti (opsional tapi direkomendasikan)
         <div class="note">
           <strong>💡 Tip:</strong> Saat upload foto, aplikasi akan otomatis menangkap:<br/>
           ⏰ Tanggal dan jam foto diambil<br/>
-          📍 Lokasi GPS (jika device mendukung)<br/>
-          Ini membantu mencegah pemalsuan bukti.
+          📍 Lokasi GPS + alamat (jika device mendukung)<br/>
+          Ini membantu mencegah pemalsuan bukti.<br/><br/>
+          <strong>📸 Tanpa foto pun boleh!</strong> Geolocation tetap tercatat otomatis setiap 30 detik.
         </div>
       </li>
       <li>Klik <span style="background:var(--acc);padding:2px 8px;border-radius:4px;color:#fff;">+ Tambah Pengeluaran</span></li>
