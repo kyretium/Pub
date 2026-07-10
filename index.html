@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20250710-v2.7-checkbox-member -->
+<!-- Cache busting: v20260710-v2.8-member-sync-fix -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -374,7 +374,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.8';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -846,6 +846,7 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   save();
   closeModal('m-trip');
   refreshTripSel();
+  updateMemberCheckboxes(); // Populate member checkboxes setelah trip dibuat
   renderBudgetBar();
   renderTodayList();
   updateBadge();
@@ -1092,38 +1093,49 @@ function updateMemberCheckboxes() {
   const t = trip();
   if (!t) return;
 
-  const allMembers = [...(t.staff || []), ...(t.manager || [])];
+  // Sanitize staff dan manager - pastikan string, bukan null/undefined
+  const staff = Array.isArray(t.staff) ? t.staff.filter(s => s && s.trim && s.trim() !== '') : [];
+  const manager = Array.isArray(t.manager) ? t.manager.filter(m => m && m.trim && m.trim() !== '') : [];
+  const allMembers = [...staff, ...manager];
 
   // Update main form
   const mainList = document.getElementById('i-members-list');
   if (mainList) {
-    mainList.innerHTML = `
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;background:rgba(79,142,247,0.1)">
-        <input type="checkbox" id="select-all-members" style="cursor:pointer" onchange="toggleAllMembers()"/>
-        <span style="font-weight:600">Semua (${allMembers.length})</span>
-      </label>
-    ` + allMembers.map(name => `
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
-        <input type="checkbox" value="${name}" class="member-checkbox" style="cursor:pointer"/>
-        <span>${name}</span>
-      </label>
-    `).join('');
+    if (allMembers.length === 0) {
+      mainList.innerHTML = '<div style="padding:10px;color:var(--mu);font-size:12px">❌ Belum ada member. Tambahkan staff/manager saat buat trip.</div>';
+    } else {
+      mainList.innerHTML = `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;background:rgba(79,142,247,0.15);border:1px solid rgba(79,142,247,0.3)">
+          <input type="checkbox" id="select-all-members" style="cursor:pointer" onchange="toggleAllMembers()"/>
+          <span style="font-weight:600">☑️ Semua (${allMembers.length})</span>
+        </label>
+      ` + allMembers.map(name => `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
+          <input type="checkbox" value="${name}" class="member-checkbox" style="cursor:pointer"/>
+          <span>${name}</span>
+        </label>
+      `).join('');
+    }
   }
 
   // Update edit form
   const editList = document.getElementById('edit-members-list');
   if (editList) {
-    editList.innerHTML = `
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;background:rgba(79,142,247,0.1)">
-        <input type="checkbox" id="select-all-edit-members" style="cursor:pointer" onchange="toggleAllEditMembers()"/>
-        <span style="font-weight:600">Semua (${allMembers.length})</span>
-      </label>
-    ` + allMembers.map(name => `
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
-        <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer"/>
-        <span>${name}</span>
-      </label>
-    `).join('');
+    if (allMembers.length === 0) {
+      editList.innerHTML = '<div style="padding:10px;color:var(--mu);font-size:12px">❌ Belum ada member.</div>';
+    } else {
+      editList.innerHTML = `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;background:rgba(79,142,247,0.15);border:1px solid rgba(79,142,247,0.3)">
+          <input type="checkbox" id="select-all-edit-members" style="cursor:pointer" onchange="toggleAllEditMembers()"/>
+          <span style="font-weight:600">☑️ Semua (${allMembers.length})</span>
+        </label>
+      ` + allMembers.map(name => `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
+          <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer"/>
+          <span>${name}</span>
+        </label>
+      `).join('');
+    }
   }
 }
 
