@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v2.10-customer-in-members -->
+<!-- Cache busting: v20260710-v3.0-staff-types -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -276,6 +276,21 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div id="m-customer-list" style="margin-bottom:10px"></div>
     <button class="btn btn-gh btn-sm" id="m-add-customer" style="width:100%;margin-bottom:10px">+ Tambah Customer</button>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      💰 REFERENSI UANG MAKAN & TRANSPORT DALAM KOTA
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
+        <div style="font-weight:600;color:var(--acc);margin-bottom:4px">👤 Staff Tetap</div>
+        <div style="color:var(--mu)">Makan: Rp 150.000/hari</div>
+        <div style="color:var(--mu)">Transport: Rp 75.000/hari</div>
+      </div>
+      <div style="flex:1;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
+        <div style="font-weight:600;color:var(--warn);margin-bottom:4px">📋 Staff Kontrak</div>
+        <div style="color:var(--mu)">Makan: Rp 120.000/hari</div>
+        <div style="color:var(--mu)">Transport: Rp 50.000/hari</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       📊 BUDGET PER KATEGORI
     </div>
     <div class="row2">
@@ -378,7 +393,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '2.10';
+const APP_VERSION = '3.0';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -720,12 +735,20 @@ function renderStaffList() {
     container.innerHTML = '';
     return;
   }
-  container.innerHTML = tripStaffList.map((name, i) => `
-    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;">
-      <input type="text" value="${name}" onchange="tripStaffList[${i}] = this.value" placeholder="Nama staff" style="flex:1;padding:8px"/>
-      <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripStaffList.splice(${i},1); renderStaffList()">×</button>
-    </div>
-  `).join('');
+  container.innerHTML = tripStaffList.map((staff, i) => {
+    const name = typeof staff === 'string' ? staff : (staff.name || '');
+    const type = typeof staff === 'object' ? (staff.type || 'tetap') : 'tetap';
+    return `
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;flex-wrap:wrap;">
+        <input type="text" value="${name}" onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: this.value, type: 'tetap'}; else tripStaffList[${i}].name = this.value" placeholder="Nama staff" style="flex:1;min-width:150px;padding:8px"/>
+        <select onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: tripStaffList[${i}], type: this.value}; else tripStaffList[${i}].type = this.value" style="padding:8px;border-radius:4px;border:1px solid var(--border);background:var(--bg)">
+          <option value="tetap" ${type === 'tetap' ? 'selected' : ''}>Tetap</option>
+          <option value="kontrak" ${type === 'kontrak' ? 'selected' : ''}>Kontrak</option>
+        </select>
+        <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripStaffList.splice(${i},1); renderStaffList()">×</button>
+      </div>
+    `;
+  }).join('');
 }
 
 function renderManagerList() {
@@ -847,13 +870,21 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   }
 
   const emp     = document.getElementById('m-emp').value.trim();
-  let staff   = tripStaffList.filter(s => s.trim() !== '');
-  let manager = tripManagerList.filter(m => m.trim() !== '');
-  let customer = tripCustomerList.filter(c => c.trim() !== '');
+
+  // Process staff: convert to objects {name, type} and filter
+  let staff = tripStaffList
+    .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
+    .filter(s => s && s.name && s.name.trim() !== '');
+
+  let manager = tripManagerList.filter(m => m && m.trim && m.trim() !== '');
+  let customer = tripCustomerList.filter(c => c && c.trim && c.trim() !== '');
 
   // Tambahkan nama karyawan utama ke staff list jika tidak kosong dan belum ada
-  if (emp && !staff.includes(emp) && !manager.includes(emp)) {
-    staff.unshift(emp); // Tambah di awal sebagai staff utama
+  if (emp) {
+    const empExists = staff.some(s => s.name === emp) || manager.includes(emp);
+    if (!empExists) {
+      staff.unshift({name: emp, type: 'tetap'}); // Tambah di awal sebagai staff tetap
+    }
   }
 
   const days    = parseInt(document.getElementById('m-days').value);
@@ -1039,6 +1070,24 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
+// ── STAFF ALLOWANCES ──────────────────────────────────────────────────────────
+function getStaffType(staffName, tripObj) {
+  if (!tripObj || !tripObj.staff) return 'tetap';
+  const staff = tripObj.staff.find(s => {
+    if (typeof s === 'string') return s === staffName;
+    return s.name === staffName;
+  });
+  return staff && typeof staff === 'object' ? (staff.type || 'tetap') : 'tetap';
+}
+
+function getStaffAllowances(type) {
+  const allowances = {
+    tetap: { makan: 150000, transportDalam: 75000 },
+    kontrak: { makan: 120000, transportDalam: 50000 }
+  };
+  return allowances[type] || allowances.tetap;
+}
+
 // ── VALIDATION ────────────────────────────────────────────────────────────────
 function validate(t, cat, amount, date, excludeExpenseId = null) {
   // Exclude expense yang sedang diedit dari validasi
@@ -1126,11 +1175,20 @@ function updateMemberCheckboxes() {
   const t = trip();
   if (!t) return;
 
-  // Sanitize staff, manager, dan customer - pastikan string, bukan null/undefined
-  const staff = Array.isArray(t.staff) ? t.staff.filter(s => s && s.trim && s.trim() !== '') : [];
+  // Process staff: convert to objects {name, type} if needed, filter empty
+  const staff = Array.isArray(t.staff) ? t.staff
+    .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
+    .filter(s => s && s.name && s.name.trim && s.name.trim() !== '') : [];
+
   const manager = Array.isArray(t.manager) ? t.manager.filter(m => m && m.trim && m.trim() !== '') : [];
   const customer = Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim && c.trim() !== '') : (t.customer && typeof t.customer === 'string' ? [t.customer] : []);
-  const allMembers = [...staff, ...manager, ...customer];
+
+  // Combine members: staff objects + manager strings + customer strings
+  const allMembers = [
+    ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '📋' : '👤'}`})),
+    ...manager.map(m => ({name: m, type: 'manager', display: m})),
+    ...customer.map(c => ({name: c, type: 'customer', display: c}))
+  ];
 
   // Update main form
   const mainList = document.getElementById('i-members-list');
@@ -1143,10 +1201,10 @@ function updateMemberCheckboxes() {
           <input type="checkbox" id="select-all-members" style="cursor:pointer" onchange="toggleAllMembers()"/>
           <span style="font-weight:600">☑️ Semua (${allMembers.length})</span>
         </label>
-      ` + allMembers.map(name => `
+      ` + allMembers.map(member => `
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
-          <input type="checkbox" value="${name}" class="member-checkbox" style="cursor:pointer"/>
-          <span>${name}</span>
+          <input type="checkbox" value="${member.name}" class="member-checkbox" style="cursor:pointer"/>
+          <span>${member.display}</span>
         </label>
       `).join('');
     }
@@ -1163,10 +1221,10 @@ function updateMemberCheckboxes() {
           <input type="checkbox" id="select-all-edit-members" style="cursor:pointer" onchange="toggleAllEditMembers()"/>
           <span style="font-weight:600">☑️ Semua (${allMembers.length})</span>
         </label>
-      ` + allMembers.map(name => `
+      ` + allMembers.map(member => `
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
-          <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer"/>
-          <span>${name}</span>
+          <input type="checkbox" value="${member.name}" class="edit-member-checkbox" style="cursor:pointer"/>
+          <span>${member.display}</span>
         </label>
       `).join('');
     }
@@ -1475,7 +1533,7 @@ async function exportPDF(ti) {
 
   // Add members and customer info if available
   let memberInfo = '';
-  if (t.staff && t.staff.length > 0) memberInfo += 'Staff: ' + t.staff.join(', ');
+  if (t.staff && t.staff.length > 0) memberInfo += 'Staff: ' + t.staff.map(s => typeof s === 'string' ? s : s.name + (s.type === 'kontrak' ? ' (Kontrak)' : '')).join(', ');
   if (t.manager && t.manager.length > 0) {
     if (memberInfo) memberInfo += ' | ';
     memberInfo += 'Manager: ' + t.manager.join(', ');
@@ -1743,7 +1801,12 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
     ...data.trip,
     // Ensure new fields exist with backward compatibility
     customer: Array.isArray(data.trip.customer) ? data.trip.customer : (data.trip.customer && typeof data.trip.customer === 'string' ? [data.trip.customer] : []),
-    staff: Array.isArray(data.trip.staff) ? data.trip.staff : (typeof data.trip.staff === 'number' ? [] : data.trip.staff || []),
+    // Convert staff: handle string format (old), object format (new), and number format
+    staff: Array.isArray(data.trip.staff) ? data.trip.staff.map(s => {
+      if (typeof s === 'string') return {name: s, type: 'tetap'};
+      if (typeof s === 'object' && s.name) return s;
+      return {name: String(s), type: 'tetap'};
+    }) : (typeof data.trip.staff === 'number' ? [] : data.trip.staff || []),
     manager: Array.isArray(data.trip.manager) ? data.trip.manager : (typeof data.trip.manager === 'number' ? [] : data.trip.manager || []),
     expenses: data.expenses || [],
     created: data.trip.created || new Date().toISOString()
@@ -1841,7 +1904,7 @@ function renderHistory() {
               ${t.customer && (Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim()).length > 0 : t.customer) ? `<div style="font-size:11px;color:var(--acc);margin-top:4px">👤 Customer: ${Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim()).join(', ') : t.customer}</div>` : ''}
               ${(t.staff && t.staff.length > 0) || (t.manager && t.manager.length > 0) ? `
                 <div style="font-size:11px;color:var(--warn);margin-top:4px">
-                  👥 ${t.staff && t.staff.length ? 'Staff: '+t.staff.join(', ') : ''} ${t.staff && t.staff.length && t.manager && t.manager.length ? ' | ' : ''} ${t.manager && t.manager.length ? 'Manager: '+t.manager.join(', ') : ''}
+                  👥 ${t.staff && t.staff.length ? 'Staff: '+t.staff.map(s => typeof s === 'string' ? s : s.name + (s.type === 'kontrak' ? ' 📋' : '')).join(', ') : ''} ${t.staff && t.staff.length && t.manager && t.manager.length ? ' | ' : ''} ${t.manager && t.manager.length ? 'Manager: '+t.manager.join(', ') : ''}
                 </div>
               ` : ''}
             </div>
