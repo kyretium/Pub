@@ -1652,8 +1652,8 @@ function updateMemberCheckboxes() {
   // Combine members: staff objects + manager strings + customer strings
   const allMembers = [
     ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '📋' : '👤'}`})),
-    ...manager.map(m => ({name: m, type: 'manager', display: m})),
-    ...customer.map(c => ({name: c, type: 'customer', display: c}))
+    ...manager.map(m => ({name: m, type: 'manager', display: `${m} 👔`})),
+    ...customer.map(c => ({name: c, type: 'customer', display: `${c} 🏢`}))
   ];
 
   // Update main form
