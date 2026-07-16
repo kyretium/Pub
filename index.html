@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v3.0-staff-types -->
+<!-- Cache busting: v20260710-v3.1-date-range-budgets -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -261,8 +261,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
       <input type="text" id="m-name" placeholder="Contoh: Dinas Jakarta Juni 2025 → Jakarta"/>
       <div style="font-size:10px;color:var(--mu);margin-top:4px;">Gunakan → untuk memisahkan nama dan tujuan</div>
     </div>
-    <div class="fg"><label class="lbl">Hari *</label><input type="number" id="m-days" placeholder="3" min="1" inputmode="numeric"/></div>
-    <div class="fg"><label class="lbl">Nama Karyawan</label><input type="text" id="m-emp" placeholder="Nama lengkap"/></div>
+    <div class="row2">
+      <div class="fg"><label class="lbl">Tanggal Mulai *</label><input type="date" id="m-start-date"/></div>
+      <div class="fg"><label class="lbl">Tanggal Akhir *</label><input type="date" id="m-end-date"/></div>
+    </div>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       👥 ANGGOTA PERJALANAN
     </div>
@@ -278,16 +280,21 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
       💰 REFERENSI UANG MAKAN & TRANSPORT DALAM KOTA
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:10px;">
-      <div style="flex:1;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
-        <div style="font-weight:600;color:var(--acc);margin-bottom:4px">👤 Staff Tetap</div>
-        <div style="color:var(--mu)">Makan: Rp 150.000/hari</div>
-        <div style="color:var(--mu)">Transport: Rp 75.000/hari</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:120px;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
+        <div style="font-weight:600;color:var(--err);margin-bottom:4px">🔑 Manager</div>
+        <div style="color:var(--mu)">Makan: Rp 200.000</div>
+        <div style="color:var(--mu)">Transport: Rp 75.000</div>
       </div>
-      <div style="flex:1;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
+      <div style="flex:1;min-width:120px;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
+        <div style="font-weight:600;color:var(--acc);margin-bottom:4px">👤 Staff Tetap</div>
+        <div style="color:var(--mu)">Makan: Rp 150.000</div>
+        <div style="color:var(--mu)">Transport: Rp 75.000</div>
+      </div>
+      <div style="flex:1;min-width:120px;background:var(--card);padding:10px;border-radius:8px;font-size:11px;">
         <div style="font-weight:600;color:var(--warn);margin-bottom:4px">📋 Staff Kontrak</div>
-        <div style="color:var(--mu)">Makan: Rp 120.000/hari</div>
-        <div style="color:var(--mu)">Transport: Rp 50.000/hari</div>
+        <div style="color:var(--mu)">Makan: Rp 120.000</div>
+        <div style="color:var(--mu)">Transport: Rp 50.000</div>
       </div>
     </div>
     <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
@@ -393,7 +400,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.1';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -781,7 +788,7 @@ function renderCustomerList() {
 
 document.getElementById('btn-new-trip').addEventListener('click', () => {
   try {
-    ['m-name','m-dest','m-emp','m-days','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => {
+    ['m-name','m-dest','m-start-date','m-end-date','m-budget-transport','m-budget-food','m-budget-dest','m-budget-overhead','m-budget-entertain'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
@@ -869,8 +876,6 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
     dest = parts[1].trim();
   }
 
-  const emp     = document.getElementById('m-emp').value.trim();
-
   // Process staff: convert to objects {name, type} and filter
   let staff = tripStaffList
     .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
@@ -879,29 +884,40 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   let manager = tripManagerList.filter(m => m && m.trim && m.trim() !== '');
   let customer = tripCustomerList.filter(c => c && c.trim && c.trim() !== '');
 
-  // Tambahkan nama karyawan utama ke staff list jika tidak kosong dan belum ada
-  if (emp) {
-    const empExists = staff.some(s => s.name === emp) || manager.includes(emp);
-    if (!empExists) {
-      staff.unshift({name: emp, type: 'tetap'}); // Tambah di awal sebagai staff tetap
-    }
-  }
+  // Get dates
+  const startDate = document.getElementById('m-start-date').value;
+  const endDate = document.getElementById('m-end-date').value;
 
-  const days    = parseInt(document.getElementById('m-days').value);
-  const bTransport = parseFloat(document.getElementById('m-budget-transport').value) || 0;
-  const bFood = parseFloat(document.getElementById('m-budget-food').value) || 0;
+  if (!name) { toast('Nama perjalanan wajib diisi.'); return; }
+  if (!startDate || !endDate) { toast('Tanggal mulai dan akhir wajib diisi.'); return; }
+  if (new Date(startDate) >= new Date(endDate)) { toast('Tanggal akhir harus setelah tanggal mulai.'); return; }
+  if (staff.length === 0 && manager.length === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
+
+  // Calculate days
+  const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Calculate auto budgets based on staff composition
+  const staffTetapCount = staff.filter(s => s.type === 'tetap').length;
+  const staffKontrakCount = staff.filter(s => s.type === 'kontrak').length;
+  const managerCount = manager.length;
+
+  const autoBFood = (managerCount * 200000 + staffTetapCount * 150000 + staffKontrakCount * 120000) * days;
+  const autoBTransport = (managerCount * 75000 + staffTetapCount * 75000 + staffKontrakCount * 50000) * days;
+
   const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
   const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
   const bEntertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+
+  if (bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
+    toast('Minimal ada 1 kategori budget (selain Food & Transport yang otomatis).'); return;
+  }
+
+  const bTransport = autoBTransport;
+  const bFood = autoBFood;
   const totalBudget = bTransport + bFood + bDest + bOverhead + bEntertain;
 
-  if (!name) { toast('Nama perjalanan wajib diisi.'); return; }
-  if (!days || days <= 0) { toast('Jumlah hari harus lebih dari 0.'); return; }
-  if (staff.length === 0 && manager.length === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
-  if (totalBudget <= 0) { toast('Minimal ada 1 kategori budget yang diisi.'); return; }
-
   trips.push({
-    name, dest, employee: emp, customer, staff, manager, days,
+    name, dest, customer, staff, manager, days, startDate, endDate,
     budgets: { transport: bTransport, food: bFood, dest_transport: bDest, overhead: bOverhead, entertainment: bEntertain },
     expenses: [],
     created: todayStr()
@@ -1418,7 +1434,10 @@ function renderTodayList() {
 function renderSummary() {
   const el = document.getElementById('summary-body');
   if (!trips.length) { el.innerHTML='<div class="empty"><div class="ei">📊</div><p>Belum ada trip.</p></div>'; return; }
-  el.innerHTML = trips.map((t,ti) => {
+  if (activeIdx < 0) { el.innerHTML='<div class="empty"><div class="ei">📊</div><p>Pilih trip dulu.</p></div>'; return; }
+
+  const tripsToShow = [trips[activeIdx]];
+  el.innerHTML = tripsToShow.map((t,ti) => {
     const totalBudget = Object.values(t.budgets || {}).reduce((s,v) => s+v, 0);
     const spent = t.expenses.reduce((s,e)=>s+e.amount,0);
     const rem   = totalBudget - spent;
@@ -1473,9 +1492,12 @@ function renderSummary() {
 // ── ALL EXPENSES ──────────────────────────────────────────────────────────────
 function renderAll() {
   const el = document.getElementById('all-body');
-  const all = [];
-  trips.forEach((t,ti)=>t.expenses.forEach(e=>all.push({...e,tripName:t.name,ti})));
-  if (!all.length) { el.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Belum ada pengeluaran.</p></div>'; return; }
+  if (activeIdx < 0) { el.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Pilih trip dulu.</p></div>'; return; }
+
+  const t = trip();
+  if (!t || !t.expenses.length) { el.innerHTML='<div class="empty"><div class="ei">🧾</div><p>Belum ada pengeluaran.</p></div>'; return; }
+
+  const all = t.expenses.map(e=>({...e,tripName:t.name,ti:activeIdx}));
   all.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id);
   let prev='', html='';
   all.forEach(e=>{
@@ -1797,8 +1819,25 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
     return;
   }
 
+  // Handle date fields - backward compatibility with old days field
+  let startDate = data.trip.startDate;
+  let endDate = data.trip.endDate;
+  let days = data.trip.days;
+
+  if (!startDate && days) {
+    // Old format: calculate from days
+    const today = new Date();
+    startDate = today.toISOString().split('T')[0];
+    const end = new Date(today);
+    end.setDate(end.getDate() + days - 1);
+    endDate = end.toISOString().split('T')[0];
+  }
+
   const newTrip = {
     ...data.trip,
+    startDate: startDate,
+    endDate: endDate,
+    days: days || (startDate && endDate ? Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1 : 0),
     // Ensure new fields exist with backward compatibility
     customer: Array.isArray(data.trip.customer) ? data.trip.customer : (data.trip.customer && typeof data.trip.customer === 'string' ? [data.trip.customer] : []),
     // Convert staff: handle string format (old), object format (new), and number format
