@@ -315,6 +315,10 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:0 4px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="m-calc-food" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🍽️ Food (Otomatis dari staff/manager)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
         <input type="checkbox" id="m-calc-transport-city" checked style="cursor:pointer;width:16px;height:16px"/>
         <span>🚗 Transport Dalam Kota (Otomatis dari staff/manager)</span>
       </label>
@@ -1051,13 +1055,14 @@ function calculateBudgetEstimation() {
   });
 
   // Get selected budget categories
+  const calcFood = document.getElementById('m-calc-food').checked;
   const calcTransportCity = document.getElementById('m-calc-transport-city').checked;
   const calcBudgetDest = document.getElementById('m-calc-budget-dest').checked;
   const calcBudgetOverhead = document.getElementById('m-calc-budget-overhead').checked;
   const calcBudgetEntertain = document.getElementById('m-calc-budget-entertain').checked;
 
   // Apply selected categories
-  let finalBFood = calcTransportCity ? autoBFood : 0;
+  let finalBFood = calcFood ? autoBFood : 0;
   let finalBTransport = calcTransportCity ? autoBTransport : 0;
 
   const bDest = (calcBudgetDest ? parseFloat(document.getElementById('m-budget-dest').value) : 0) || 0;
@@ -1387,19 +1392,20 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   });
 
   // Get selected budget categories
+  const calcFood = document.getElementById('m-calc-food').checked;
   const calcTransportCity = document.getElementById('m-calc-transport-city').checked;
   const calcBudgetDest = document.getElementById('m-calc-budget-dest').checked;
   const calcBudgetOverhead = document.getElementById('m-calc-budget-overhead').checked;
   const calcBudgetEntertain = document.getElementById('m-calc-budget-entertain').checked;
 
   // Apply selected categories
+  const bFood = calcFood ? autoBFood : 0;
   const bTransport = calcTransportCity ? autoBTransport : 0;
-  const bFood = calcTransportCity ? autoBFood : 0;
   const bDest = (calcBudgetDest ? parseFloat(document.getElementById('m-budget-dest').value) : 0) || 0;
   const bOverhead = (calcBudgetOverhead ? parseFloat(document.getElementById('m-budget-overhead').value) : 0) || 0;
   const bEntertain = (calcBudgetEntertain ? parseFloat(document.getElementById('m-budget-entertain').value) : 0) || 0;
 
-  if (bTransport <= 0 && bFood <= 0 && bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
+  if (bFood <= 0 && bTransport <= 0 && bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
     toast('Pilih minimal 1 kategori budget untuk dihitung.'); return;
   }
 
