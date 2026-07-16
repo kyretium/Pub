@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v3.2-custom-person-dates -->
+<!-- Cache busting: v20260716-v3.3-edit-trip -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -309,12 +309,92 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
       <div class="fg"><label class="lbl">🚆 Overhead</label><input type="number" id="m-budget-overhead" placeholder="0" min="0" inputmode="numeric"/></div>
     </div>
     <div class="fg"><label class="lbl">🎉 Entertain</label><input type="number" id="m-budget-entertain" placeholder="0" min="0" inputmode="numeric"/></div>
+
+    <button class="btn btn-gh btn-full" id="m-calculate-btn" style="margin-bottom:10px">📊 Hitung Budget Estimasi</button>
+
+    <div id="m-calculation-result" style="display:none;background:var(--card2);padding:12px;border-radius:8px;margin-bottom:10px;font-size:12px;">
+      <div style="font-weight:600;margin-bottom:8px;color:var(--acc)">📋 Estimasi Budget Otomatis:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="color:var(--mu);font-size:11px;">🍽️ Food</div>
+          <div style="font-weight:600;color:var(--tx);font-size:14px" id="m-est-food">Rp 0</div>
+        </div>
+        <div>
+          <div style="color:var(--mu);font-size:11px;">🚗 Transport</div>
+          <div style="font-weight:600;color:var(--tx);font-size:14px" id="m-est-transport">Rp 0</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--bd);padding-top:8px;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:var(--mu)">Subtotal (Food + Transport):</span>
+          <span style="font-weight:600" id="m-est-subtotal">Rp 0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--mu)">+ Manual Budget (Dest, Overhead, Entertainment):</span>
+          <span style="font-weight:600" id="m-est-manual">Rp 0</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--bd);padding-top:8px;margin-top:8px;background:rgba(79,142,247,0.1);padding:8px;border-radius:4px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-weight:600">TOTAL ESTIMASI:</span>
+          <span style="font-weight:700;color:var(--acc);font-size:14px" id="m-est-total">Rp 0</span>
+        </div>
+      </div>
+    </div>
+
     <div style="background:rgba(79,142,247,0.1);padding:10px;border-radius:8px;margin-bottom:13px;font-size:12px;color:var(--acc);border-left:3px solid var(--acc);font-weight:600;">
-      Total: <span id="m-total-budget">Rp 0</span>
+      Total Manual Budget: <span id="m-total-budget">Rp 0</span>
     </div>
     <div class="mbtns">
       <button class="btn btn-gh" style="flex:1" id="m-trip-cancel">Batal</button>
       <button class="btn btn-acc" style="flex:2" id="m-trip-ok">Buat Trip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Trip Modal -->
+<div class="mover" id="m-edit-trip">
+  <div class="mbox" style="max-height:90vh;overflow-y:auto;">
+    <h2>Edit Trip</h2>
+    <div class="fg"><label class="lbl">Nama Perjalanan *</label><input type="text" id="edit-name" placeholder="Contoh: Dinas Jakarta → Jakarta"/></div>
+    <div class="fg"><label class="lbl">Tujuan</label><input type="text" id="edit-dest" placeholder="Tujuan perjalanan"/></div>
+    <div class="row2">
+      <div class="fg"><label class="lbl">Tanggal Mulai *</label><input type="date" id="edit-start-date"/></div>
+      <div class="fg"><label class="lbl">Tanggal Akhir *</label><input type="date" id="edit-end-date"/></div>
+    </div>
+
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      👥 STAFF
+    </div>
+    <div id="edit-staff-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-gh btn-sm" id="edit-add-staff" style="width:100%;margin-bottom:15px">+ Tambah Staff</button>
+
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      👥 MANAGER
+    </div>
+    <div id="edit-manager-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-gh btn-sm" id="edit-add-manager" style="width:100%;margin-bottom:15px">+ Tambah Manager</button>
+
+    <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:10px;font-size:11px;color:var(--mu);font-weight:600;">
+      💰 BUDGET PER KATEGORI
+    </div>
+    <div class="row2">
+      <div class="fg"><label class="lbl">🚗 Transport ke Tujuan</label><input type="number" id="edit-budget-dest" placeholder="0" min="0" inputmode="numeric"/></div>
+      <div class="fg"><label class="lbl">🚆 Overhead</label><input type="number" id="edit-budget-overhead" placeholder="0" min="0" inputmode="numeric"/></div>
+    </div>
+    <div class="fg"><label class="lbl">🎉 Entertainment</label><input type="number" id="edit-budget-entertain" placeholder="0" min="0" inputmode="numeric"/></div>
+
+    <div style="background:rgba(79,142,247,0.1);padding:10px;border-radius:8px;margin:15px 0;font-size:12px;">
+      <div style="color:var(--mu);margin-bottom:8px">📊 Food & Transport akan dihitung otomatis dari staff/manager</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><span style="color:var(--mu)">Food:</span> <span style="font-weight:600" id="edit-auto-food">Rp 0</span></div>
+        <div><span style="color:var(--mu)">Transport:</span> <span style="font-weight:600" id="edit-auto-transport">Rp 0</span></div>
+      </div>
+    </div>
+
+    <div class="mbtns">
+      <button class="btn btn-gh" style="flex:1" id="edit-trip-cancel">Batal</button>
+      <button class="btn btn-acc" style="flex:2" id="edit-trip-save">Simpan Perubahan</button>
     </div>
   </div>
 </div>
@@ -400,7 +480,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -892,6 +972,317 @@ if (addCustomerBtn) {
 });
 document.getElementById('m-trip-cancel').addEventListener('click', () => closeModal('m-trip'));
 document.getElementById('m-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-trip'); });
+
+// Calculate budget estimation function
+function calculateBudgetEstimation() {
+  const startDate = document.getElementById('m-start-date').value;
+  const endDate = document.getElementById('m-end-date').value;
+
+  if (!startDate || !endDate) { toast('Isi tanggal mulai dan akhir dulu.'); return false; }
+  if (new Date(startDate) >= new Date(endDate)) { toast('Tanggal akhir harus setelah tanggal mulai.'); return false; }
+
+  // Process staff and manager
+  let staff = tripStaffList
+    .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
+    .filter(s => s && s.name && s.name.trim() !== '');
+
+  let manager = tripManagerList
+    .map(m => typeof m === 'string' ? {name: m} : m)
+    .filter(m => m && m.name && m.name.trim && m.name.trim() !== '');
+
+  if (staff.length === 0 && manager.length === 0) { toast('Tambah minimal 1 staff atau manager.'); return false; }
+
+  // Calculate days
+  const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Helper function
+  function getPersonDays(person, tripStart, tripEnd) {
+    if (!person.dateStart || !person.dateEnd) return days;
+    const pStart = new Date(person.dateStart);
+    const pEnd = new Date(person.dateEnd);
+    const tStart = new Date(tripStart);
+    const tEnd = new Date(tripEnd);
+
+    const overlapStart = pStart > tStart ? pStart : tStart;
+    const overlapEnd = pEnd < tEnd ? pEnd : tEnd;
+
+    if (overlapStart > overlapEnd) return 0;
+    return Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  // Calculate auto budgets
+  let autoBFood = 0;
+  let autoBTransport = 0;
+
+  manager.forEach(m => {
+    const managerDays = getPersonDays(m, startDate, endDate);
+    autoBFood += 200000 * managerDays;
+    autoBTransport += 75000 * managerDays;
+  });
+
+  staff.forEach(s => {
+    const staffDays = getPersonDays(s, startDate, endDate);
+    const mealRate = s.type === 'tetap' ? 150000 : 120000;
+    const transportRate = s.type === 'tetap' ? 75000 : 50000;
+    autoBFood += mealRate * staffDays;
+    autoBTransport += transportRate * staffDays;
+  });
+
+  const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
+  const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
+  const bEntertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+  const manualTotal = bDest + bOverhead + bEntertain;
+  const totalBudget = autoBFood + autoBTransport + manualTotal;
+
+  // Display results
+  document.getElementById('m-est-food').textContent = 'Rp ' + Math.round(autoBFood).toLocaleString('id-ID');
+  document.getElementById('m-est-transport').textContent = 'Rp ' + Math.round(autoBTransport).toLocaleString('id-ID');
+  document.getElementById('m-est-subtotal').textContent = 'Rp ' + Math.round(autoBFood + autoBTransport).toLocaleString('id-ID');
+  document.getElementById('m-est-manual').textContent = 'Rp ' + Math.round(manualTotal).toLocaleString('id-ID');
+  document.getElementById('m-est-total').textContent = 'Rp ' + Math.round(totalBudget).toLocaleString('id-ID');
+  document.getElementById('m-calculation-result').style.display = 'block';
+
+  return { autoBFood, autoBTransport };
+}
+
+document.getElementById('m-calculate-btn').addEventListener('click', calculateBudgetEstimation);
+
+// ── EDIT TRIP MODAL ────────────────────────────────────────────────────────────
+let editTripIdx = -1;
+let editStaffList = [];
+let editManagerList = [];
+
+function openEditTrip(tripIdx) {
+  editTripIdx = tripIdx;
+  const t = trips[tripIdx];
+  if (!t) return;
+
+  document.getElementById('edit-name').value = t.name;
+  document.getElementById('edit-dest').value = t.dest || '';
+  document.getElementById('edit-start-date').value = t.startDate || '';
+  document.getElementById('edit-end-date').value = t.endDate || '';
+  document.getElementById('edit-budget-dest').value = t.budgets?.dest_transport || '';
+  document.getElementById('edit-budget-overhead').value = t.budgets?.overhead || '';
+  document.getElementById('edit-budget-entertain').value = t.budgets?.entertainment || '';
+
+  editStaffList = (t.staff || []).map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : {...s});
+  editManagerList = (t.manager || []).map(m => typeof m === 'string' ? {name: m} : {...m});
+
+  renderEditStaffList();
+  renderEditManagerList();
+  calculateEditBudget();
+  openModal('m-edit-trip');
+}
+
+function renderEditStaffList() {
+  const el = document.getElementById('edit-staff-list');
+  if (!el) return;
+
+  el.innerHTML = editStaffList.map((s, idx) => {
+    const hasCustomDate = s.dateStart || s.dateEnd;
+    return `
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" value="${s.name || ''}" placeholder="Nama staff" style="flex:1" onchange="editStaffList[${idx}].name = this.value"/>
+          <select onchange="editStaffList[${idx}].type = this.value" style="flex:0 0 120px">
+            <option value="tetap" ${s.type === 'tetap' ? 'selected' : ''}>Tetap</option>
+            <option value="kontrak" ${s.type === 'kontrak' ? 'selected' : ''}>Kontrak</option>
+          </select>
+          <button class="btn btn-gh btn-sm" onclick="editStaffList.splice(${idx},1);renderEditStaffList();calculateEditBudget()" style="flex:0 0 auto">×</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--mu)">
+          <input type="checkbox" ${hasCustomDate ? 'checked' : ''} onchange="editStaffList[${idx}].dateStart = this.checked ? '' : undefined;editStaffList[${idx}].dateEnd = this.checked ? '' : undefined;renderEditStaffList();calculateEditBudget()"/>
+          <span>Custom date (jika ikut sebagian perjalanan)</span>
+        </label>
+        ${hasCustomDate ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <input type="date" value="${s.dateStart || ''}" placeholder="Tanggal mulai" onchange="editStaffList[${idx}].dateStart = this.value;calculateEditBudget()"/>
+          <input type="date" value="${s.dateEnd || ''}" placeholder="Tanggal akhir" onchange="editStaffList[${idx}].dateEnd = this.value;calculateEditBudget()"/>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderEditManagerList() {
+  const el = document.getElementById('edit-manager-list');
+  if (!el) return;
+
+  el.innerHTML = editManagerList.map((m, idx) => {
+    const hasCustomDate = m.dateStart || m.dateEnd;
+    return `
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" value="${m.name || ''}" placeholder="Nama manager" style="flex:1" onchange="editManagerList[${idx}].name = this.value"/>
+          <button class="btn btn-gh btn-sm" onclick="editManagerList.splice(${idx},1);renderEditManagerList();calculateEditBudget()" style="flex:0 0 auto">×</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--mu)">
+          <input type="checkbox" ${hasCustomDate ? 'checked' : ''} onchange="editManagerList[${idx}].dateStart = this.checked ? '' : undefined;editManagerList[${idx}].dateEnd = this.checked ? '' : undefined;renderEditManagerList();calculateEditBudget()"/>
+          <span>Custom date (jika ikut sebagian perjalanan)</span>
+        </label>
+        ${hasCustomDate ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <input type="date" value="${m.dateStart || ''}" placeholder="Tanggal mulai" onchange="editManagerList[${idx}].dateStart = this.value;calculateEditBudget()"/>
+          <input type="date" value="${m.dateEnd || ''}" placeholder="Tanggal akhir" onchange="editManagerList[${idx}].dateEnd = this.value;calculateEditBudget()"/>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function calculateEditBudget() {
+  const startDate = document.getElementById('edit-start-date').value;
+  const endDate = document.getElementById('edit-end-date').value;
+
+  if (!startDate || !endDate) return;
+
+  const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+  function getPersonDays(person, tripStart, tripEnd) {
+    if (!person.dateStart || !person.dateEnd) return days;
+    const pStart = new Date(person.dateStart);
+    const pEnd = new Date(person.dateEnd);
+    const tStart = new Date(tripStart);
+    const tEnd = new Date(tripEnd);
+
+    const overlapStart = pStart > tStart ? pStart : tStart;
+    const overlapEnd = pEnd < tEnd ? pEnd : tEnd;
+
+    if (overlapStart > overlapEnd) return 0;
+    return Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  let autoBFood = 0;
+  let autoBTransport = 0;
+
+  editManagerList.forEach(m => {
+    if (m.name && m.name.trim()) {
+      const managerDays = getPersonDays(m, startDate, endDate);
+      autoBFood += 200000 * managerDays;
+      autoBTransport += 75000 * managerDays;
+    }
+  });
+
+  editStaffList.forEach(s => {
+    if (s.name && s.name.trim()) {
+      const staffDays = getPersonDays(s, startDate, endDate);
+      const mealRate = s.type === 'tetap' ? 150000 : 120000;
+      const transportRate = s.type === 'tetap' ? 75000 : 50000;
+      autoBFood += mealRate * staffDays;
+      autoBTransport += transportRate * staffDays;
+    }
+  });
+
+  document.getElementById('edit-auto-food').textContent = 'Rp ' + Math.round(autoBFood).toLocaleString('id-ID');
+  document.getElementById('edit-auto-transport').textContent = 'Rp ' + Math.round(autoBTransport).toLocaleString('id-ID');
+}
+
+document.getElementById('edit-add-staff').addEventListener('click', () => {
+  editStaffList.push({name: '', type: 'tetap'});
+  renderEditStaffList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#edit-staff-list input[type="text"]');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
+});
+
+document.getElementById('edit-add-manager').addEventListener('click', () => {
+  editManagerList.push({name: ''});
+  renderEditManagerList();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#edit-manager-list input[type="text"]');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 0);
+});
+
+document.getElementById('edit-trip-cancel').addEventListener('click', () => closeModal('m-edit-trip'));
+
+document.getElementById('edit-trip-save').addEventListener('click', () => {
+  const name = document.getElementById('edit-name').value.trim();
+  const dest = document.getElementById('edit-dest').value.trim();
+  const startDate = document.getElementById('edit-start-date').value;
+  const endDate = document.getElementById('edit-end-date').value;
+
+  if (!name) { toast('Nama perjalanan wajib diisi.'); return; }
+  if (!startDate || !endDate) { toast('Tanggal mulai dan akhir wajib diisi.'); return; }
+  if (new Date(startDate) >= new Date(endDate)) { toast('Tanggal akhir harus setelah tanggal mulai.'); return; }
+
+  let staff = editStaffList.filter(s => s.name && s.name.trim() !== '');
+  let manager = editManagerList.filter(m => m.name && m.name.trim() !== '');
+
+  if (staff.length === 0 && manager.length === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
+
+  const bDest = parseFloat(document.getElementById('edit-budget-dest').value) || 0;
+  const bOverhead = parseFloat(document.getElementById('edit-budget-overhead').value) || 0;
+  const bEntertain = parseFloat(document.getElementById('edit-budget-entertain').value) || 0;
+
+  if (bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
+    toast('Minimal ada 1 kategori budget manual.'); return;
+  }
+
+  const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+  function getPersonDays(person, tripStart, tripEnd) {
+    if (!person.dateStart || !person.dateEnd) return days;
+    const pStart = new Date(person.dateStart);
+    const pEnd = new Date(person.dateEnd);
+    const tStart = new Date(tripStart);
+    const tEnd = new Date(tripEnd);
+
+    const overlapStart = pStart > tStart ? pStart : tStart;
+    const overlapEnd = pEnd < tEnd ? pEnd : tEnd;
+
+    if (overlapStart > overlapEnd) return 0;
+    return Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  let autoBFood = 0;
+  let autoBTransport = 0;
+
+  manager.forEach(m => {
+    const managerDays = getPersonDays(m, startDate, endDate);
+    autoBFood += 200000 * managerDays;
+    autoBTransport += 75000 * managerDays;
+  });
+
+  staff.forEach(s => {
+    const staffDays = getPersonDays(s, startDate, endDate);
+    const mealRate = s.type === 'tetap' ? 150000 : 120000;
+    const transportRate = s.type === 'tetap' ? 75000 : 50000;
+    autoBFood += mealRate * staffDays;
+    autoBTransport += transportRate * staffDays;
+  });
+
+  const t = trips[editTripIdx];
+  t.name = name;
+  t.dest = dest;
+  t.startDate = startDate;
+  t.endDate = endDate;
+  t.days = days;
+  t.staff = staff;
+  t.manager = manager;
+  t.budgets = {
+    transport: autoBTransport,
+    food: autoBFood,
+    dest_transport: bDest,
+    overhead: bOverhead,
+    entertainment: bEntertain
+  };
+
+  save();
+  closeModal('m-edit-trip');
+  refreshTripSel();
+  updateBadge();
+  renderBudgetBar();
+  renderSummary();
+  renderAll();
+  renderExport();
+  toast('✓ Trip diperbarui!', 'ok');
+});
+
+document.getElementById('m-edit-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-edit-trip'); });
 
 document.getElementById('m-trip-ok').addEventListener('click', () => {
   const fullInput = document.getElementById('m-name').value.trim();
@@ -1531,9 +1922,12 @@ function renderSummary() {
     }).join('');
 
     return `<div class="fcard" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
         <div><div style="font-size:15px;font-weight:700">${t.name}</div><div style="font-size:12px;color:var(--mu)">${t.dest||''}${t.employee?' · '+t.employee:''}</div></div>
-        <span class="chip ${cls}">${pct}%</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-gh btn-sm" onclick="openEditTrip(${activeIdx})" style="padding:6px 10px;font-size:12px">✎ Edit</button>
+          <span class="chip ${cls}">${pct}%</span>
+        </div>
       </div>
       <div class="sgrid">
         <div class="sc"><div class="sl">Total Budget</div><div class="sv" style="font-size:14px">${fmtRp(totalBudget)}</div></div>
