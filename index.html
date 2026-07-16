@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260710-v3.1-date-range-budgets -->
+<!-- Cache busting: v20260710-v3.2-custom-person-dates -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -400,7 +400,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -745,14 +745,27 @@ function renderStaffList() {
   container.innerHTML = tripStaffList.map((staff, i) => {
     const name = typeof staff === 'string' ? staff : (staff.name || '');
     const type = typeof staff === 'object' ? (staff.type || 'tetap') : 'tetap';
+    const hasCustomDates = typeof staff === 'object' && (staff.dateStart || staff.dateEnd);
     return `
-      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;flex-wrap:wrap;">
-        <input type="text" value="${name}" onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: this.value, type: 'tetap'}; else tripStaffList[${i}].name = this.value" placeholder="Nama staff" style="flex:1;min-width:150px;padding:8px"/>
-        <select onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: tripStaffList[${i}], type: this.value}; else tripStaffList[${i}].type = this.value" style="padding:8px;border-radius:4px;border:1px solid var(--border);background:var(--bg)">
-          <option value="tetap" ${type === 'tetap' ? 'selected' : ''}>Tetap</option>
-          <option value="kontrak" ${type === 'kontrak' ? 'selected' : ''}>Kontrak</option>
-        </select>
-        <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripStaffList.splice(${i},1); renderStaffList()">×</button>
+      <div style="margin-bottom:10px;padding:10px;background:var(--card);border-radius:8px;border-left:3px solid var(--acc)">
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" value="${name}" onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: this.value, type: 'tetap'}; else tripStaffList[${i}].name = this.value" placeholder="Nama staff" style="flex:1;min-width:150px;padding:8px"/>
+          <select onchange="if(typeof tripStaffList[${i}] === 'string') tripStaffList[${i}] = {name: tripStaffList[${i}], type: this.value}; else tripStaffList[${i}].type = this.value" style="padding:8px;border-radius:4px;border:1px solid var(--border);background:var(--bg)">
+            <option value="tetap" ${type === 'tetap' ? 'selected' : ''}>Tetap</option>
+            <option value="kontrak" ${type === 'kontrak' ? 'selected' : ''}>Kontrak</option>
+          </select>
+          <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripStaffList.splice(${i},1); renderStaffList()">×</button>
+        </div>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;color:var(--mu);margin-bottom:8px">
+          <input type="checkbox" ${hasCustomDates ? 'checked' : ''} onchange="if(!tripStaffList[${i}]) return; if(typeof tripStaffList[${i}] !== 'object') tripStaffList[${i}] = {name, type}; if(this.checked) { tripStaffList[${i}].dateStart=document.getElementById('m-start-date').value; tripStaffList[${i}].dateEnd=document.getElementById('m-end-date').value; } else { delete tripStaffList[${i}].dateStart; delete tripStaffList[${i}].dateEnd; } renderStaffList()"/>
+          <span>📅 Hari khusus (custom dates)</span>
+        </label>
+        ${hasCustomDates ? `
+          <div style="display:flex;gap:6px;font-size:12px">
+            <input type="date" value="${staff.dateStart || ''}" onchange="if(typeof tripStaffList[${i}] === 'object') tripStaffList[${i}].dateStart = this.value" style="flex:1;padding:6px"/>
+            <input type="date" value="${staff.dateEnd || ''}" onchange="if(typeof tripStaffList[${i}] === 'object') tripStaffList[${i}].dateEnd = this.value" style="flex:1;padding:6px"/>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -764,12 +777,28 @@ function renderManagerList() {
     container.innerHTML = '';
     return;
   }
-  container.innerHTML = tripManagerList.map((name, i) => `
-    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;padding:8px;background:var(--card);border-radius:8px;">
-      <input type="text" value="${name}" onchange="tripManagerList[${i}] = this.value" placeholder="Nama manager" style="flex:1;padding:8px"/>
-      <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripManagerList.splice(${i},1); renderManagerList()">×</button>
-    </div>
-  `).join('');
+  container.innerHTML = tripManagerList.map((manager, i) => {
+    const name = typeof manager === 'string' ? manager : (manager.name || '');
+    const hasCustomDates = typeof manager === 'object' && (manager.dateStart || manager.dateEnd);
+    return `
+      <div style="margin-bottom:10px;padding:10px;background:var(--card);border-radius:8px;border-left:3px solid var(--err)">
+        <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+          <input type="text" value="${name}" onchange="if(typeof tripManagerList[${i}] === 'string') tripManagerList[${i}] = {name: this.value}; else tripManagerList[${i}].name = this.value" placeholder="Nama manager" style="flex:1;padding:8px"/>
+          <button class="btn btn-sm" style="background:var(--err);color:#fff;padding:6px 10px;height:auto" onclick="tripManagerList.splice(${i},1); renderManagerList()">×</button>
+        </div>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;color:var(--mu);margin-bottom:8px">
+          <input type="checkbox" ${hasCustomDates ? 'checked' : ''} onchange="if(!tripManagerList[${i}]) return; if(typeof tripManagerList[${i}] !== 'object') tripManagerList[${i}] = {name}; if(this.checked) { tripManagerList[${i}].dateStart=document.getElementById('m-start-date').value; tripManagerList[${i}].dateEnd=document.getElementById('m-end-date').value; } else { delete tripManagerList[${i}].dateStart; delete tripManagerList[${i}].dateEnd; } renderManagerList()"/>
+          <span>📅 Hari khusus (custom dates)</span>
+        </label>
+        ${hasCustomDates ? `
+          <div style="display:flex;gap:6px;font-size:12px">
+            <input type="date" value="${manager.dateStart || ''}" onchange="if(typeof tripManagerList[${i}] === 'object') tripManagerList[${i}].dateStart = this.value" style="flex:1;padding:6px"/>
+            <input type="date" value="${manager.dateEnd || ''}" onchange="if(typeof tripManagerList[${i}] === 'object') tripManagerList[${i}].dateEnd = this.value" style="flex:1;padding:6px"/>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 function renderCustomerList() {
@@ -876,12 +905,14 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
     dest = parts[1].trim();
   }
 
-  // Process staff: convert to objects {name, type} and filter
+  // Process staff: convert to objects {name, type, dateStart?, dateEnd?} and filter
   let staff = tripStaffList
     .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
     .filter(s => s && s.name && s.name.trim() !== '');
 
-  let manager = tripManagerList.filter(m => m && m.trim && m.trim() !== '');
+  let manager = tripManagerList
+    .map(m => typeof m === 'string' ? {name: m} : m)
+    .filter(m => m && m.name && m.name.trim && m.name.trim() !== '');
   let customer = tripCustomerList.filter(c => c && c.trim && c.trim() !== '');
 
   // Get dates
@@ -896,13 +927,41 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
   // Calculate days
   const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
 
-  // Calculate auto budgets based on staff composition
-  const staffTetapCount = staff.filter(s => s.type === 'tetap').length;
-  const staffKontrakCount = staff.filter(s => s.type === 'kontrak').length;
-  const managerCount = manager.length;
+  // Helper function to calculate days for a person
+  function getPersonDays(person, tripStart, tripEnd) {
+    if (!person.dateStart || !person.dateEnd) return days; // Default: full trip duration
+    const pStart = new Date(person.dateStart);
+    const pEnd = new Date(person.dateEnd);
+    const tStart = new Date(tripStart);
+    const tEnd = new Date(tripEnd);
 
-  const autoBFood = (managerCount * 200000 + staffTetapCount * 150000 + staffKontrakCount * 120000) * days;
-  const autoBTransport = (managerCount * 75000 + staffTetapCount * 75000 + staffKontrakCount * 50000) * days;
+    // Calculate overlap
+    const overlapStart = pStart > tStart ? pStart : tStart;
+    const overlapEnd = pEnd < tEnd ? pEnd : tEnd;
+
+    if (overlapStart > overlapEnd) return 0;
+    return Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+  }
+
+  // Calculate auto budgets based on individual participation days
+  let autoBFood = 0;
+  let autoBTransport = 0;
+
+  // Calculate for each manager
+  manager.forEach(m => {
+    const managerDays = getPersonDays(m, startDate, endDate);
+    autoBFood += 200000 * managerDays;
+    autoBTransport += 75000 * managerDays;
+  });
+
+  // Calculate for each staff
+  staff.forEach(s => {
+    const staffDays = getPersonDays(s, startDate, endDate);
+    const mealRate = s.type === 'tetap' ? 150000 : 120000;
+    const transportRate = s.type === 'tetap' ? 75000 : 50000;
+    autoBFood += mealRate * staffDays;
+    autoBTransport += transportRate * staffDays;
+  });
 
   const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
   const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
@@ -1846,7 +1905,11 @@ document.getElementById('m-import-ok').addEventListener('click', () => {
       if (typeof s === 'object' && s.name) return s;
       return {name: String(s), type: 'tetap'};
     }) : (typeof data.trip.staff === 'number' ? [] : data.trip.staff || []),
-    manager: Array.isArray(data.trip.manager) ? data.trip.manager : (typeof data.trip.manager === 'number' ? [] : data.trip.manager || []),
+    manager: Array.isArray(data.trip.manager) ? data.trip.manager.map(m => {
+      if (typeof m === 'string') return {name: m};
+      if (typeof m === 'object' && m.name) return m;
+      return {name: String(m)};
+    }) : (typeof data.trip.manager === 'number' ? [] : data.trip.manager || []),
     expenses: data.expenses || [],
     created: data.trip.created || new Date().toISOString()
   };
