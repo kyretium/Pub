@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260716-v3.4-budget-categories -->
+<!-- Cache busting: v20260716-v3.5-edit-budget-categories -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -410,6 +410,32 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     </div>
     <div class="fg"><label class="lbl">🎉 Entertainment</label><input type="number" id="edit-budget-entertain" placeholder="0" min="0" inputmode="numeric"/></div>
 
+    <div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--mu);font-weight:600;">
+      ✓ PILIH BUDGET YANG AKAN DIHITUNG:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:0 4px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="edit-calc-food" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🍽️ Food (Otomatis dari staff/manager)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="edit-calc-transport-city" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🚗 Transport Dalam Kota (Otomatis dari staff/manager)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="edit-calc-budget-dest" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🛣️ Transport ke Tujuan (Manual)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="edit-calc-budget-overhead" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🚆 Overhead (Manual)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="edit-calc-budget-entertain" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🎉 Entertainment (Manual)</span>
+      </label>
+    </div>
+
     <div style="background:rgba(79,142,247,0.1);padding:10px;border-radius:8px;margin:15px 0;font-size:12px;">
       <div style="color:var(--mu);margin-bottom:8px">📊 Food & Transport akan dihitung otomatis dari staff/manager</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -506,7 +532,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.4';
+const APP_VERSION = '3.5';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1212,8 +1238,16 @@ function calculateEditBudget() {
     }
   });
 
-  document.getElementById('edit-auto-food').textContent = 'Rp ' + Math.round(autoBFood).toLocaleString('id-ID');
-  document.getElementById('edit-auto-transport').textContent = 'Rp ' + Math.round(autoBTransport).toLocaleString('id-ID');
+  // Get selected budget categories
+  const calcFood = document.getElementById('edit-calc-food').checked;
+  const calcTransportCity = document.getElementById('edit-calc-transport-city').checked;
+
+  // Apply selected categories
+  const finalBFood = calcFood ? autoBFood : 0;
+  const finalBTransport = calcTransportCity ? autoBTransport : 0;
+
+  document.getElementById('edit-auto-food').textContent = 'Rp ' + Math.round(finalBFood).toLocaleString('id-ID');
+  document.getElementById('edit-auto-transport').textContent = 'Rp ' + Math.round(finalBTransport).toLocaleString('id-ID');
 }
 
 document.getElementById('edit-add-staff').addEventListener('click', () => {
@@ -1251,12 +1285,19 @@ document.getElementById('edit-trip-save').addEventListener('click', () => {
 
   if (staff.length === 0 && manager.length === 0) { toast('Minimal ada 1 staff atau manager.'); return; }
 
-  const bDest = parseFloat(document.getElementById('edit-budget-dest').value) || 0;
-  const bOverhead = parseFloat(document.getElementById('edit-budget-overhead').value) || 0;
-  const bEntertain = parseFloat(document.getElementById('edit-budget-entertain').value) || 0;
+  // Get selected budget categories
+  const calcFood = document.getElementById('edit-calc-food').checked;
+  const calcTransportCity = document.getElementById('edit-calc-transport-city').checked;
+  const calcBudgetDest = document.getElementById('edit-calc-budget-dest').checked;
+  const calcBudgetOverhead = document.getElementById('edit-calc-budget-overhead').checked;
+  const calcBudgetEntertain = document.getElementById('edit-calc-budget-entertain').checked;
 
-  if (bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
-    toast('Minimal ada 1 kategori budget manual.'); return;
+  const bDest = (calcBudgetDest ? parseFloat(document.getElementById('edit-budget-dest').value) : 0) || 0;
+  const bOverhead = (calcBudgetOverhead ? parseFloat(document.getElementById('edit-budget-overhead').value) : 0) || 0;
+  const bEntertain = (calcBudgetEntertain ? parseFloat(document.getElementById('edit-budget-entertain').value) : 0) || 0;
+
+  if (!calcFood && !calcTransportCity && bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
+    toast('Pilih minimal 1 kategori budget untuk dihitung.'); return;
   }
 
   const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
@@ -1292,6 +1333,10 @@ document.getElementById('edit-trip-save').addEventListener('click', () => {
     autoBTransport += transportRate * staffDays;
   });
 
+  // Apply selected categories
+  const finalBFood = calcFood ? autoBFood : 0;
+  const finalBTransport = calcTransportCity ? autoBTransport : 0;
+
   const t = trips[editTripIdx];
   t.name = name;
   t.dest = dest;
@@ -1301,8 +1346,8 @@ document.getElementById('edit-trip-save').addEventListener('click', () => {
   t.staff = staff;
   t.manager = manager;
   t.budgets = {
-    transport: autoBTransport,
-    food: autoBFood,
+    transport: finalBTransport,
+    food: finalBFood,
     dest_transport: bDest,
     overhead: bOverhead,
     entertainment: bEntertain
@@ -1320,6 +1365,12 @@ document.getElementById('edit-trip-save').addEventListener('click', () => {
 });
 
 document.getElementById('m-edit-trip').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('m-edit-trip'); });
+
+// Add event listeners for edit trip budget category checkboxes
+['edit-calc-food', 'edit-calc-transport-city', 'edit-calc-budget-dest', 'edit-calc-budget-overhead', 'edit-calc-budget-entertain'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', calculateEditBudget);
+});
 
 document.getElementById('m-trip-ok').addEventListener('click', () => {
   const fullInput = document.getElementById('m-name').value.trim();
