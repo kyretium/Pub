@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260716-v3.3-edit-trip -->
+<!-- Cache busting: v20260716-v3.4-budget-categories -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -310,6 +310,28 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     </div>
     <div class="fg"><label class="lbl">🎉 Entertain</label><input type="number" id="m-budget-entertain" placeholder="0" min="0" inputmode="numeric"/></div>
 
+    <div style="background:var(--card2);padding:12px;border-radius:8px;margin-bottom:12px;font-size:11px;color:var(--mu);font-weight:600;">
+      ✓ PILIH BUDGET YANG AKAN DIHITUNG:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:0 4px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="m-calc-transport-city" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🚗 Transport Dalam Kota (Otomatis dari staff/manager)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="m-calc-budget-dest" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🛣️ Transport ke Tujuan (Manual)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="m-calc-budget-overhead" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🚆 Overhead (Manual)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="m-calc-budget-entertain" checked style="cursor:pointer;width:16px;height:16px"/>
+        <span>🎉 Entertainment (Manual)</span>
+      </label>
+    </div>
+
     <button class="btn btn-gh btn-full" id="m-calculate-btn" style="margin-bottom:10px">📊 Hitung Budget Estimasi</button>
 
     <div id="m-calculation-result" style="display:none;background:var(--card2);padding:12px;border-radius:8px;margin-bottom:10px;font-size:12px;">
@@ -480,7 +502,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.3';
+const APP_VERSION = '3.4';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1028,21 +1050,31 @@ function calculateBudgetEstimation() {
     autoBTransport += transportRate * staffDays;
   });
 
-  const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
-  const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
-  const bEntertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+  // Get selected budget categories
+  const calcTransportCity = document.getElementById('m-calc-transport-city').checked;
+  const calcBudgetDest = document.getElementById('m-calc-budget-dest').checked;
+  const calcBudgetOverhead = document.getElementById('m-calc-budget-overhead').checked;
+  const calcBudgetEntertain = document.getElementById('m-calc-budget-entertain').checked;
+
+  // Apply selected categories
+  let finalBFood = calcTransportCity ? autoBFood : 0;
+  let finalBTransport = calcTransportCity ? autoBTransport : 0;
+
+  const bDest = (calcBudgetDest ? parseFloat(document.getElementById('m-budget-dest').value) : 0) || 0;
+  const bOverhead = (calcBudgetOverhead ? parseFloat(document.getElementById('m-budget-overhead').value) : 0) || 0;
+  const bEntertain = (calcBudgetEntertain ? parseFloat(document.getElementById('m-budget-entertain').value) : 0) || 0;
   const manualTotal = bDest + bOverhead + bEntertain;
-  const totalBudget = autoBFood + autoBTransport + manualTotal;
+  const totalBudget = finalBFood + finalBTransport + manualTotal;
 
   // Display results
-  document.getElementById('m-est-food').textContent = 'Rp ' + Math.round(autoBFood).toLocaleString('id-ID');
-  document.getElementById('m-est-transport').textContent = 'Rp ' + Math.round(autoBTransport).toLocaleString('id-ID');
-  document.getElementById('m-est-subtotal').textContent = 'Rp ' + Math.round(autoBFood + autoBTransport).toLocaleString('id-ID');
+  document.getElementById('m-est-food').textContent = 'Rp ' + Math.round(finalBFood).toLocaleString('id-ID');
+  document.getElementById('m-est-transport').textContent = 'Rp ' + Math.round(finalBTransport).toLocaleString('id-ID');
+  document.getElementById('m-est-subtotal').textContent = 'Rp ' + Math.round(finalBFood + finalBTransport).toLocaleString('id-ID');
   document.getElementById('m-est-manual').textContent = 'Rp ' + Math.round(manualTotal).toLocaleString('id-ID');
   document.getElementById('m-est-total').textContent = 'Rp ' + Math.round(totalBudget).toLocaleString('id-ID');
   document.getElementById('m-calculation-result').style.display = 'block';
 
-  return { autoBFood, autoBTransport };
+  return { autoBFood: finalBFood, autoBTransport: finalBTransport };
 }
 
 document.getElementById('m-calculate-btn').addEventListener('click', calculateBudgetEstimation);
@@ -1354,16 +1386,23 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
     autoBTransport += transportRate * staffDays;
   });
 
-  const bDest = parseFloat(document.getElementById('m-budget-dest').value) || 0;
-  const bOverhead = parseFloat(document.getElementById('m-budget-overhead').value) || 0;
-  const bEntertain = parseFloat(document.getElementById('m-budget-entertain').value) || 0;
+  // Get selected budget categories
+  const calcTransportCity = document.getElementById('m-calc-transport-city').checked;
+  const calcBudgetDest = document.getElementById('m-calc-budget-dest').checked;
+  const calcBudgetOverhead = document.getElementById('m-calc-budget-overhead').checked;
+  const calcBudgetEntertain = document.getElementById('m-calc-budget-entertain').checked;
 
-  if (bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
-    toast('Minimal ada 1 kategori budget (selain Food & Transport yang otomatis).'); return;
+  // Apply selected categories
+  const bTransport = calcTransportCity ? autoBTransport : 0;
+  const bFood = calcTransportCity ? autoBFood : 0;
+  const bDest = (calcBudgetDest ? parseFloat(document.getElementById('m-budget-dest').value) : 0) || 0;
+  const bOverhead = (calcBudgetOverhead ? parseFloat(document.getElementById('m-budget-overhead').value) : 0) || 0;
+  const bEntertain = (calcBudgetEntertain ? parseFloat(document.getElementById('m-budget-entertain').value) : 0) || 0;
+
+  if (bTransport <= 0 && bFood <= 0 && bDest <= 0 && bOverhead <= 0 && bEntertain <= 0) {
+    toast('Pilih minimal 1 kategori budget untuk dihitung.'); return;
   }
 
-  const bTransport = autoBTransport;
-  const bFood = autoBFood;
   const totalBudget = bTransport + bFood + bDest + bOverhead + bEntertain;
 
   trips.push({
@@ -1651,9 +1690,9 @@ function updateMemberCheckboxes() {
 
   // Combine members: staff objects + manager strings + customer strings
   const allMembers = [
-    ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '📋' : '👤'}`})),
-    ...manager.map(m => ({name: m, type: 'manager', display: `${m} 👔`})),
-    ...customer.map(c => ({name: c, type: 'customer', display: `${c} 🏢`}))
+    ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '(Staff Kontrak 📋)' : '(Staff Tetap 👤)'}`})),
+    ...manager.map(m => ({name: m, type: 'manager', display: `${m} (Manager 👔)`})),
+    ...customer.map(c => ({name: c, type: 'customer', display: `${c} (Customer 🏢)`}))
   ];
 
   // Update main form
