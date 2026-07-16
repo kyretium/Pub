@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260716-v3.5-edit-budget-categories -->
+<!-- Cache busting: v20260716-v3.6-fix-manager-list -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -532,7 +532,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.5';
+const APP_VERSION = '3.6';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1742,13 +1742,17 @@ function updateMemberCheckboxes() {
     .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
     .filter(s => s && s.name && s.name.trim && s.name.trim() !== '') : [];
 
-  const manager = Array.isArray(t.manager) ? t.manager.filter(m => m && m.trim && m.trim() !== '') : [];
+  // Process manager: convert to objects {name} if needed, filter empty
+  const manager = Array.isArray(t.manager) ? t.manager
+    .map(m => typeof m === 'string' ? {name: m} : m)
+    .filter(m => m && m.name && m.name.trim && m.name.trim() !== '') : [];
+
   const customer = Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim && c.trim() !== '') : (t.customer && typeof t.customer === 'string' ? [t.customer] : []);
 
-  // Combine members: staff objects + manager strings + customer strings
+  // Combine members: staff objects + manager objects + customer strings
   const allMembers = [
     ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '(Staff Kontrak 📋)' : '(Staff Tetap 👤)'}`})),
-    ...manager.map(m => ({name: m, type: 'manager', display: `${m} (Manager 👔)`})),
+    ...manager.map(m => ({name: m.name, type: 'manager', display: `${m.name} (Manager 👔)`})),
     ...customer.map(c => ({name: c, type: 'customer', display: `${c} (Customer 🏢)`}))
   ];
 
