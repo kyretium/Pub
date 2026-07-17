@@ -801,12 +801,27 @@ function openEditExpense(ti, expenseId) {
   document.getElementById('edit-nota-type').value = e.nota_type || 'onsite';
 
   // Populate member checkboxes
-  const allMembers = [...(t.staff || []), ...(t.manager || [])];
+  const staff = Array.isArray(t.staff) ? t.staff
+    .map(s => typeof s === 'string' ? {name: s, type: 'tetap'} : s)
+    .filter(s => s && s.name && s.name.trim && s.name.trim() !== '') : [];
+
+  const manager = Array.isArray(t.manager) ? t.manager
+    .map(m => typeof m === 'string' ? {name: m} : m)
+    .filter(m => m && m.name && m.name.trim && m.name.trim() !== '') : [];
+
+  const customer = Array.isArray(t.customer) ? t.customer.filter(c => c && c.trim && c.trim() !== '') : (t.customer && typeof t.customer === 'string' ? [t.customer] : []);
+
+  const allMembers = [
+    ...staff.map(s => ({name: s.name, type: s.type, display: `${s.name} ${s.type === 'kontrak' ? '(Staff Kontrak 📋)' : '(Staff Tetap 👤)'}`})),
+    ...manager.map(m => ({name: m.name, type: 'manager', display: `${m.name} (Manager 👔)`})),
+    ...customer.map(c => ({name: c, type: 'customer', display: `${c} (Customer 🏢)`}))
+  ];
+
   const editList = document.getElementById('edit-members-list');
-  editList.innerHTML = allMembers.map(name => `
+  editList.innerHTML = allMembers.map(member => `
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px;border-radius:4px;hover:background:rgba(255,255,255,0.05)">
-      <input type="checkbox" value="${name}" class="edit-member-checkbox" style="cursor:pointer" ${e.selected_members && e.selected_members.includes(name) ? 'checked' : ''}/>
-      <span>${name}</span>
+      <input type="checkbox" value="${member.name}" class="edit-member-checkbox" style="cursor:pointer" ${e.selected_members && e.selected_members.includes(member.name) ? 'checked' : ''}/>
+      <span>${member.display}</span>
     </label>
   `).join('');
 
