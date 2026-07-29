@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cache busting: v20260716-v3.6-fix-manager-list -->
+<!-- Cache busting: v20260716-v3.7-expense-id-daily-budget -->
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
@@ -532,7 +532,7 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
 
 <script>
 // ── VERSION ───────────────────────────────────────────────────────────────────
-const APP_VERSION = '3.6';
+const APP_VERSION = '3.7';
 document.getElementById('app-version').textContent = APP_VERSION;
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1717,8 +1717,16 @@ document.getElementById('btn-add').addEventListener('click', () => {
   const expenseGeo = photoGeo || currentGeo || null;
   const expenseTime = photoTime ? photoTime.toISOString() : new Date().toISOString();
 
+  // Generate unique ID untuk expense (format: EXP-YYYYMMDD-RANDOM)
+  const today = new Date();
+  const dateStr = today.getFullYear().toString() +
+    (today.getMonth()+1).toString().padStart(2,'0') +
+    today.getDate().toString().padStart(2,'0');
+  const randomPart = Math.random().toString(36).substring(2,8).toUpperCase();
+  const uniqueExpenseId = `EXP-${dateStr}-${randomPart}`;
+
   const expenseObj = {
-    id: Date.now(), desc, amount, date, cat,
+    id: Date.now(), uniqueId: uniqueExpenseId, desc, amount, date, cat,
     nota_type: notaType,
     selected_members: selectedMembers,
     proof: photoB64,
@@ -1967,8 +1975,9 @@ function eCard(e, ti) {
     }
   }
 
-  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${proofInfo}</div>` : '';
+  const proof = e.proof ? `<div class="eproof"><img class="pthumb" src="${e.proof}" onclick="openLbox('${e.proof}')"/>${proofInfo}${e.uniqueId ? `<div style="font-size:10px;color:var(--acc);margin-top:4px;">🆔 ${e.uniqueId}</div>` : ''}</div>` : '';
   const extraInfo = memberInfo + notaInfo + geoInfo ? `<div style="margin-top:${e.proof?8:0}px;">${memberInfo}${notaInfo}${geoInfo}</div>` : '';
+  const photoPdfBtn = e.proof ? `<button class="edel" style="font-size:14px;padding:2px 6px" onclick="exportPhotoPDF(${ti},${e.id})" title="Export foto sebagai PDF">📄</button>` : '';
 
   return `<div class="eitem">
     <div class="etop">
@@ -1978,6 +1987,7 @@ function eCard(e, ti) {
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <div class="eamt">${fmtRp(e.amount)}</div>
+        ${photoPdfBtn}
         <button class="edel" style="font-size:16px;padding:2px 6px" onclick="openEditExpense(${ti},${e.id})">✎</button>
         <button class="edel" onclick="askDelete(${ti},${e.id},'${e.desc.replace(/'/g,"\\'")}')">×</button>
       </div>
@@ -2053,8 +2063,73 @@ function renderSummary() {
       <div class="div"></div>
       <div class="stitle" style="margin-bottom:10px">Budget Per Kategori</div>
       ${catBreakdown||'<p style="font-size:13px;color:var(--mu)">Belum ada pengeluaran.</p>'}
+      <div class="div"></div>
+      <div class="stitle" style="margin-bottom:10px">📅 Detail Budget Per Hari</div>
+      ${renderDailyBudgetDetails(t) || '<p style="font-size:13px;color:var(--mu)">Belum ada data.</p>'}
     </div>`;
   }).join('');
+}
+
+// ── DAILY BUDGET DETAILS ──────────────────────────────────────────────────────
+function renderDailyBudgetDetails(t) {
+  if (!t || !t.startDate || !t.endDate) return '';
+
+  // Generate date array untuk setiap hari dalam trip
+  const startDate = new Date(t.startDate);
+  const endDate = new Date(t.endDate);
+  const dates = [];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  // Calculate daily budget (transport + food budget dibagi jumlah hari)
+  const transportDailyBudget = (t.budgets?.transport || 0) / Math.max(t.days || 1, 1);
+  const foodDailyBudget = (t.budgets?.food || 0) / Math.max(t.days || 1, 1);
+  const dailyTotal = transportDailyBudget + foodDailyBudget;
+
+  // Get expenses per date
+  const expensesByDate = {};
+  t.expenses.forEach(e => {
+    if (!expensesByDate[e.date]) expensesByDate[e.date] = [];
+    // Count only transport dan food untuk daily budget check
+    if (['transport', 'food'].includes(e.cat)) {
+      expensesByDate[e.date].push(e);
+    }
+  });
+
+  // Build daily details
+  const dailyDetails = dates.map((date, idx) => {
+    const dayNum = idx + 1;
+    const dayExpenses = expensesByDate[date] || [];
+    const daySpent = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const dayRemaining = dailyTotal - daySpent;
+    const isFull = daySpent >= dailyTotal;
+    const pct = Math.min(100, Math.round((daySpent / dailyTotal) * 100));
+
+    const statusEmoji = isFull ? '✅' : daySpent > 0 ? '⚠️' : '⭕';
+    const statusColor = isFull ? '#10b981' : daySpent > 0 ? '#f59e0b' : '#94a3b8';
+
+    return `
+      <div style="background:var(--card2);padding:10px;border-radius:8px;margin-bottom:8px;border-left:3px solid ${statusColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:600;font-size:13px">${statusEmoji} Hari ${dayNum} (${fmtDate(date)})</span>
+          <span style="font-size:12px;color:${statusColor};font-weight:600">${pct}%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+          <div><span style="color:var(--mu)">Budget/Hari:</span> <span style="font-weight:600">${fmtRp(dailyTotal)}</span></div>
+          <div><span style="color:var(--mu)">Terpakai:</span> <span style="font-weight:600;color:${isFull?'#10b981':'#f59e0b'}">${fmtRp(daySpent)}</span></div>
+        </div>
+        <div style="margin-top:6px">
+          <div class="btrack" style="height:4px"><div class="bfill ${isFull?'ok':daySpent>0?'wn':'ok'}" style="width:${pct}%"></div></div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--mu);margin-top:4px">
+          Sisa: ${fmtRp(dayRemaining)} ${dayExpenses.length > 0 ? `(${dayExpenses.length} item)` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return dailyDetails;
 }
 
 // ── ALL EXPENSES ──────────────────────────────────────────────────────────────
@@ -2097,6 +2172,57 @@ function renderExport() {
     </div>`).join('');
 
   el.innerHTML = html;
+}
+
+// ── EXPORT PHOTO AS PDF ───────────────────────────────────────────────────────
+async function exportPhotoPDF(ti, expenseId) {
+  const t = trips[ti];
+  const e = t.expenses.find(x => x.id === expenseId);
+  if (!e || !e.proof) { toast('Tidak ada foto untuk expense ini.'); return; }
+  if (typeof window.jspdf === 'undefined') { toast('jsPDF belum siap, coba lagi.'); return; }
+
+  toast('Membuat PDF foto...', 'ok');
+  await new Promise(r=>setTimeout(r,150));
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W = 210, H = 297;
+
+  // Add header with expense info
+  doc.setFillColor(26,26,46);
+  doc.rect(0,0,W,40,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(14);
+  doc.setFont(undefined,'bold');
+  doc.text('BUKTI PENGELUARAN', 14, 15);
+
+  doc.setFontSize(10);
+  doc.setFont(undefined,'normal');
+  doc.text(`ID: ${e.uniqueId || 'N/A'}`, 14, 22);
+  doc.text(`Trip: ${t.name}`, 14, 28);
+  doc.text(`Tanggal: ${fmtDate(e.date)}`, 14, 34);
+
+  // Add photo
+  doc.setTextColor(0,0,0);
+  const photoHeight = 150;
+  const imgX = (W - 150) / 2;
+  doc.addImage(e.proof, 'JPEG', imgX, 50, 150, photoHeight);
+
+  // Add footer with expense details
+  const footerY = 210;
+  doc.setFontSize(9);
+  doc.text(`Keterangan: ${e.desc}`, 14, footerY);
+  doc.text(`Jumlah: Rp ${e.amount.toLocaleString('id-ID')}`, 14, footerY + 6);
+  doc.text(`Kategori: ${CATS[e.cat]?.label || e.cat}`, 14, footerY + 12);
+  doc.text(`Tipe Nota: ${e.nota_type || '-'}`, 14, footerY + 18);
+  if (e.selected_members && e.selected_members.length > 0) {
+    doc.text(`Member: ${e.selected_members.join(', ')}`, 14, footerY + 24);
+  }
+
+  // Download
+  const fileName = `${e.uniqueId || 'foto'}_${t.name.replace(/[^a-zA-Z0-9]/g, '')}.pdf`;
+  doc.save(fileName);
+  toast('✓ PDF foto berhasil diunduh!', 'ok');
 }
 
 // ── PDF EXPORT ────────────────────────────────────────────────────────────────
