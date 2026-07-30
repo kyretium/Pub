@@ -9,6 +9,11 @@
 <meta name="theme-color" content="#0f0f1a"/>
 <title>Expense Dinas</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Firebase SDK v9+ (modular) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js"></script>
 <style>
 :root{--bg:#0f0f1a;--surf:#1a1a2e;--card:#16213e;--card2:#1e2d50;--acc:#4f8ef7;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;--tx:#f1f5f9;--mu:#94a3b8;--bd:rgba(255,255,255,0.09);--r:12px;--rs:8px;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -133,11 +138,18 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
     <div class="topbar-row">
       <div>
         <h1>✈️ Expense Dinas</h1>
-        <div style="font-size:11px;color:var(--mu);margin-top:2px">v<span id="app-version">2.1</span></div>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">
+          <span>v<span id="app-version">2.1</span></span>
+          <span style="margin-left:8px;color:var(--acc);" id="sync-status">⚠️ Offline</span>
+        </div>
       </div>
-      <button class="btn btn-gh btn-sm" id="btn-new-trip">+ Trip</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-gh btn-sm" id="auth-btn" title="Sign in / out">🔓 Sign In</button>
+        <button class="btn btn-gh btn-sm" id="btn-new-trip">+ Trip</button>
+      </div>
     </div>
     <div id="badge"></div>
+    <div style="font-size:11px;color:var(--mu);margin-top:4px;">User: <span id="user-email">Not signed in</span></div>
   </div>
 
   <div class="content">
@@ -521,6 +533,25 @@ input:focus,select:focus{outline:none;border-color:var(--acc);}
   </div>
 </div>
 
+<!-- Auth Modal -->
+<div class="mover" id="m-auth">
+  <div class="mbox">
+    <h2 id="auth-title">Sign In</h2>
+    <div id="auth-form" style="display:none;">
+      <div class="fg"><label class="lbl">Email</label><input type="email" id="auth-email" placeholder="your@email.com"/></div>
+      <div class="fg"><label class="lbl">Password</label><input type="password" id="auth-password" placeholder="••••••••"/></div>
+      <button class="btn btn-acc btn-full" id="auth-submit">Sign In</button>
+      <div style="text-align:center;margin-top:12px;font-size:12px;">
+        <button class="btn btn-gh" style="background:none;border:none;color:var(--acc);padding:0;" id="auth-toggle">Create new account?</button>
+      </div>
+    </div>
+    <div style="text-align:center;color:var(--mu);font-size:12px;">
+      <p style="margin-bottom:12px;">Offline mode available - work without signing in</p>
+      <button class="btn btn-gh" style="width:100%;margin-bottom:8px;" id="m-auth-close">Use Offline</button>
+    </div>
+  </div>
+</div>
+
 <!-- Image Lightbox -->
 <div class="lbox" id="lbox">
   <button class="lbox-x" id="lbox-x">×</button>
@@ -553,6 +584,164 @@ let photoTime = null;
 let currentGeo = null;
 let pendingDelTrip = -1, pendingDelId = -1, pendingDelMode = 'expense'; // 'expense' or 'trip'
 let editingTrip = -1, editingExpenseId = -1; // untuk edit expense
+
+// ── FIREBASE CONFIGURATION ───────────────────────────────────────────────────────
+let firebaseApp = null;
+let firebaseAuth = null;
+let firebaseDb = null;
+let firebaseStorage = null;
+let currentUser = null;
+let isOnline = navigator.onLine;
+let syncStatus = 'offline'; // 'offline', 'syncing', 'synced'
+let unsubscribeFunctions = []; // Track real-time listeners for cleanup
+
+// Load Firebase config from environment (or use fallback)
+const firebaseConfig = {
+  apiKey: 'PLACEHOLDER_API_KEY',
+  authDomain: 'PLACEHOLDER_AUTH_DOMAIN',
+  projectId: 'PLACEHOLDER_PROJECT_ID',
+  storageBucket: 'PLACEHOLDER_STORAGE_BUCKET',
+  messagingSenderId: 'PLACEHOLDER_MESSAGING_SENDER_ID',
+  appId: 'PLACEHOLDER_APP_ID'
+};
+
+// Try to initialize Firebase if config is valid
+async function initFirebase() {
+  try {
+    if (!firebaseConfig.projectId || firebaseConfig.projectId.includes('PLACEHOLDER')) {
+      console.log('Firebase config not configured. Using offline-only mode.');
+      return false;
+    }
+
+    const { initializeApp } = window;
+    const { getAuth, onAuthStateChanged } = window;
+    const { getFirestore } = window;
+    const { getStorage } = window;
+
+    if (!initializeApp || !getAuth || !getFirestore || !getStorage) {
+      console.error('Firebase SDK not loaded');
+      return false;
+    }
+
+    firebaseApp = initializeApp(firebaseConfig);
+    firebaseAuth = getAuth(firebaseApp);
+    firebaseDb = getFirestore(firebaseApp);
+    firebaseStorage = getStorage(firebaseApp);
+
+    // Listen for auth state changes
+    onAuthStateChanged(firebaseAuth, async (user) => {
+      currentUser = user;
+      if (user) {
+        console.log('User authenticated:', user.email);
+        await syncTripsFromFirestore();
+      } else {
+        console.log('User logged out');
+      }
+      updateAuthUI();
+    });
+
+    window.addEventListener('online', () => {
+      isOnline = true;
+      setSyncStatus('syncing');
+      syncTripsFromFirestore().then(() => setSyncStatus('synced'));
+    });
+
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      setSyncStatus('offline');
+    });
+
+    console.log('Firebase initialized successfully');
+    return true;
+  } catch (err) {
+    console.error('Firebase initialization error:', err);
+    return false;
+  }
+}
+
+function setSyncStatus(status) {
+  syncStatus = status;
+  const statusEl = document.getElementById('sync-status');
+  if (statusEl) {
+    if (status === 'syncing') {
+      statusEl.textContent = '🔄 Syncing...';
+    } else if (status === 'synced') {
+      statusEl.textContent = '✅ Synced';
+    } else if (status === 'offline') {
+      statusEl.textContent = '⚠️ Offline';
+    }
+  }
+}
+
+function checkPermission(action) {
+  if (!currentUser) return false;
+  if (activeIdx < 0 || activeIdx >= trips.length) return false;
+
+  const trip = trips[activeIdx];
+  const ownerId = trip.ownerId || null;
+  const sharedWith = trip.sharedWith || {};
+  const userRole = currentUser.uid === ownerId ? 'owner' : sharedWith[currentUser.uid] || 'none';
+
+  switch(action) {
+    case 'view': return userRole !== 'none';
+    case 'add': return userRole === 'owner' || userRole === 'editor';
+    case 'edit': return userRole === 'owner' || userRole === 'editor';
+    case 'delete_own': return userRole === 'owner' || userRole === 'editor';
+    case 'delete_any': return userRole === 'owner';
+    case 'manage': return userRole === 'owner';
+    default: return false;
+  }
+}
+
+async function syncTripsFromFirestore() {
+  if (!firebaseAuth || !firebaseDb || !currentUser) return;
+  try {
+    const { collection, query, where, getDocs } = window;
+    const tripsRef = collection(firebaseDb, 'trips');
+
+    const userTrips = query(
+      tripsRef,
+      where('sharedWith', 'array-contains', currentUser.uid)
+    );
+
+    const ownedTrips = query(
+      tripsRef,
+      where('ownerId', '==', currentUser.uid)
+    );
+
+    const [userSnap, ownedSnap] = await Promise.all([
+      getDocs(userTrips),
+      getDocs(ownedTrips)
+    ]);
+
+    const firestoreTrips = [];
+    userSnap.forEach(doc => {
+      firestoreTrips.push({ id: doc.id, ...doc.data() });
+    });
+    ownedSnap.forEach(doc => {
+      if (!firestoreTrips.find(t => t.id === doc.id)) {
+        firestoreTrips.push({ id: doc.id, ...doc.data() });
+      }
+    });
+
+    console.log('Synced', firestoreTrips.length, 'trips from Firestore');
+  } catch (err) {
+    console.error('Error syncing from Firestore:', err);
+  }
+}
+
+function updateAuthUI() {
+  const authBtn = document.getElementById('auth-btn');
+  const userEmail = document.getElementById('user-email');
+
+  if (currentUser) {
+    if (authBtn) authBtn.textContent = '🚪 Sign Out';
+    if (userEmail) userEmail.textContent = currentUser.email;
+  } else {
+    if (authBtn) authBtn.textContent = '🔓 Sign In';
+    if (userEmail) userEmail.textContent = 'Not signed in';
+  }
+}
 
 // ── INDEXEDDB WRAPPER (Support 20MB+ storage) ─────────────────────────────────
 let db = null;
@@ -877,6 +1066,105 @@ document.getElementById('edit-save').addEventListener('click', () => {
 
 function openModal(id) { document.getElementById(id).classList.add('on'); }
 function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+
+// ── FIREBASE AUTH FUNCTIONS ───────────────────────────────────────────────────────
+let isSignUpMode = false;
+
+async function signUp(email, password, displayName) {
+  try {
+    if (!firebaseAuth) return { error: 'Firebase not initialized' };
+
+    const { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } = window;
+
+    const result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    const user = result.user;
+
+    await updateProfile(user, { displayName });
+    await sendEmailVerification(user);
+
+    showToast('Verification email sent. Please verify before signing in again.');
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function signIn(email, password) {
+  try {
+    if (!firebaseAuth) return { error: 'Firebase not initialized' };
+
+    const { signInWithEmailAndPassword } = window;
+
+    const result = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    showToast('Signed in successfully!');
+    closeModal('m-auth');
+    return { success: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function signOut() {
+  try {
+    if (!firebaseAuth) return;
+
+    const { signOut } = window;
+
+    await signOut(firebaseAuth);
+    currentUser = null;
+    showToast('Signed out');
+    updateAuthUI();
+  } catch (err) {
+    showToast('Error signing out: ' + err.message);
+  }
+}
+
+function showAuthModal() {
+  openModal('m-auth');
+  isSignUpMode = false;
+  document.getElementById('auth-title').textContent = 'Sign In';
+  document.getElementById('auth-submit').textContent = 'Sign In';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+// Auth event listeners setup
+document.getElementById('m-auth-close').addEventListener('click', () => closeModal('m-auth'));
+
+document.getElementById('auth-toggle').addEventListener('click', () => {
+  isSignUpMode = !isSignUpMode;
+  const title = document.getElementById('auth-title');
+  const submit = document.getElementById('auth-submit');
+  const toggle = document.getElementById('auth-toggle');
+
+  if (isSignUpMode) {
+    title.textContent = 'Create Account';
+    submit.textContent = 'Sign Up';
+    toggle.textContent = 'Already have an account?';
+  } else {
+    title.textContent = 'Sign In';
+    submit.textContent = 'Sign In';
+    toggle.textContent = 'Create new account?';
+  }
+});
+
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+
+  if (!email || !password) {
+    showToast('Please fill in all fields');
+    return;
+  }
+
+  if (isSignUpMode) {
+    const result = await signUp(email, password, email.split('@')[0]);
+    if (result.error) showToast('Signup error: ' + result.error);
+  } else {
+    const result = await signIn(email, password);
+    if (result.error) showToast('Sign in error: ' + result.error);
+  }
+});
 
 // ── TRIP MODAL ────────────────────────────────────────────────────────────────
 let tripStaffList = [];
@@ -2679,8 +2967,20 @@ function goTab(name) {
   if(name==='history') renderHistory();
 }
 
+// ── AUTH BUTTON LISTENER ──────────────────────────────────────────────────────
+document.getElementById('auth-btn').addEventListener('click', async () => {
+  if (currentUser) {
+    await signOut();
+  } else {
+    showAuthModal();
+  }
+});
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 (async () => {
+  // Initialize Firebase (offline mode if config not provided)
+  await initFirebase();
+
   await loadData();
   document.getElementById('i-date').value = todayStr();
   refreshTripSel();
