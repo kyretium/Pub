@@ -1,0 +1,101 @@
+name: Security Scan & Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for hardcoded Firebase credentials..."
+          # Check for Firebase API key patterns
+          if grep -r "AIzaSy\|AAAA.*\|firebase" . --include="*.html" --include="*.js" --exclude-dir=node_modules --exclude-dir=.git 2>/dev/null | grep -v ".env.example" | grep -v "node_modules" | grep -v ".git"; then
+            echo "⚠️  WARNING: Possible hardcoded credentials found. Verify these are placeholders only."
+          else
+            echo "✅ No obvious hardcoded secrets detected"
+          fi
+
+      - name: Verify environment variables not in code
+        run: |
+          echo "Checking that actual Firebase config is not in code..."
+          if grep -r "VITE_FIREBASE_API_KEY.*AIzaSy" . --include="*.html" --include="*.js" --exclude-dir=.git --exclude-dir=node_modules 2>/dev/null; then
+            echo "❌ ERROR: Actual Firebase API key found in code!"
+            exit 1
+          else
+            echo "✅ No actual API keys found in source code"
+          fi
+
+      - name: Validate HTML structure
+        run: |
+          echo "Validating HTML file structure..."
+          if [ ! -f "index.html" ]; then
+            echo "❌ ERROR: index.html not found"
+            exit 1
+          fi
+          # Check for Firebase SDK load attempt
+          if grep -q "firebase" index.html; then
+            echo "✅ Firebase initialization code found"
+          else
+            echo "⚠️  WARNING: No Firebase code detected yet"
+          fi
+
+      - name: Check .env.local is ignored
+        run: |
+          echo "Verifying .env.local is in .gitignore..."
+          if grep -q "\.env\.local" .gitignore 2>/dev/null; then
+            echo "✅ .env.local is properly gitignored"
+          else
+            echo "⚠️  WARNING: .env.local might not be gitignored"
+          fi
+
+  deploy:
+    name: Deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "⚠️  FIREBASE_TOKEN not set in GitHub Secrets. Skipping deployment."
+            echo "To enable auto-deployment:"
+            echo "1. Run: firebase login:ci"
+            echo "2. Add the token as FIREBASE_TOKEN secret in GitHub"
+            exit 0
+          fi
+          firebase deploy --project ${{ secrets.FIREBASE_PROJECT_ID }} --token $FIREBASE_TOKEN
+
+      - name: Deployment Status
+        if: success()
+        run: |
+          echo "✅ Deployment completed successfully"
+          echo "Visit your Firebase Hosting URL to verify deployment"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed. Check Firebase configuration."

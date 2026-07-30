@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: Check if user is trip owner
+    function isOwner(tripId) {
+      return get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
+    }
+
+    // Helper function: Check if user has access to trip (owner or in sharedWith)
+    function hasAccess(tripId) {
+      let trip = get(/databases/$(database)/documents/trips/$(tripId)).data;
+      return request.auth.uid == trip.ownerId ||
+             (trip.sharedWith != null && request.auth.uid in trip.sharedWith);
+    }
+
+    // Helper function: Check if user has edit access (owner or editor role)
+    function hasEditAccess(tripId) {
+      let trip = get(/databases/$(database)/documents/trips/$(tripId)).data;
+      return request.auth.uid == trip.ownerId ||
+             (trip.sharedWith != null && trip.sharedWith.get(request.auth.uid) == 'editor');
+    }
+
+    // Helper function: Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+             email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // Trips collection
+    match /trips/{tripId} {
+      // Read: User must be owner or in sharedWith map
+      allow read: if hasAccess(tripId);
+
+      // Create: Authenticated user setting themselves as owner
+      allow create: if request.auth != null &&
+                       request.resource.data.ownerId == request.auth.uid &&
+                       request.resource.data.name is string &&
+                       request.resource.data.name.size() > 0 &&
+                       request.resource.data.name.size() <= 255 &&
+                       request.resource.data.sharedWith is map &&
+                       request.resource.data.created == request.time &&
+                       request.resource.data.lastModified == request.time;
+
+      // Update: Owner or editor can update, owner ID and creation time immutable
+      allow update: if hasEditAccess(tripId) &&
+                       request.resource.data.ownerId == resource.data.ownerId &&
+                       request.resource.data.created == resource.data.created &&
+                       request.resource.data.lastModified == request.time &&
+                       request.resource.data.size() > 0;
+
+      // Delete: Only owner can delete
+      allow delete: if isOwner(tripId);
+
+      // Expenses subcollection
+      match /expenses/{expenseId} {
+        // Read: Anyone with trip access
+        allow read: if hasAccess(tripId);
+
+        // Create: Editor or owner can create new expenses
+        allow create: if hasEditAccess(tripId) &&
+                         request.resource.data.createdBy == request.auth.uid &&
+                         request.resource.data.createdAt == request.time &&
+                         request.resource.data.amount is number &&
+                         request.resource.data.amount > 0 &&
+                         request.resource.data.desc is string &&
+                         request.resource.data.date is string;
+
+        // Update: Creator or trip owner can update
+        allow update: if (resource.data.createdBy == request.auth.uid || isOwner(tripId)) &&
+                         request.resource.data.createdBy == resource.data.createdBy &&
+                         request.resource.data.createdAt == resource.data.createdAt &&
+                         request.resource.data.lastModified == request.time;
+
+        // Delete: Creator or trip owner can delete
+        allow delete: if resource.data.createdBy == request.auth.uid || isOwner(tripId);
+      }
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      // Read: Only the user can read their own profile
+      allow read: if request.auth.uid == userId;
+
+      // Write: Only the user can write their own profile
+      allow write: if request.auth.uid == userId &&
+                      request.resource.data.email is string &&
+                      isValidEmail(request.resource.data.email) &&
+                      request.resource.data.displayName is string &&
+                      request.resource.data.displayName.size() > 0 &&
+                      request.resource.data.displayName.size() <= 255;
+    }
+  }
+}
+
+// Cloud Storage rules defined separately in storage.rules

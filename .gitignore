@@ -1,0 +1,31 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node (if using npm/build tools)
+node_modules/
+dist/
+build/
+npm-debug.log
+yarn-error.log
+
+# Firebase
+.firebase/
+.firebaserc
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Local development
+*.log
+.eslintcache

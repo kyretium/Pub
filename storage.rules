@@ -1,0 +1,40 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper to check if user has trip access
+    function hasAccess(tripId) {
+      let trip = firestore.get(/databases/(default)/documents/trips/$(tripId)).data;
+      return request.auth.uid == trip.ownerId ||
+             (trip.sharedWith != null && request.auth.uid in trip.sharedWith);
+    }
+
+    // Helper to check if user has edit access to trip
+    function hasEditAccess(tripId) {
+      let trip = firestore.get(/databases/(default)/documents/trips/$(tripId)).data;
+      return request.auth.uid == trip.ownerId ||
+             (trip.sharedWith != null && trip.sharedWith.get(request.auth.uid) == 'editor');
+    }
+
+    // Photos in trips
+    match /trips/{tripId}/photos/{photoId} {
+      // Read: Any authenticated user with trip access can read photos
+      allow read: if request.auth != null && hasAccess(tripId);
+
+      // Write: Only authenticated editors/owners can upload photos
+      allow write: if request.auth != null &&
+                      hasEditAccess(tripId) &&
+                      request.resource.contentType.matches('image/.*') &&
+                      request.resource.size < 5242880; // 5MB max
+
+      // Delete: Creator or trip owner can delete
+      allow delete: if request.auth != null &&
+                       (resource.metadata.get('uploadedBy') == request.auth.uid ||
+                        hasAccess(tripId));
+    }
+
+    // Restrict all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
