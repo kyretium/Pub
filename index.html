@@ -848,7 +848,7 @@ async function loadData() {
   }
 }
 
-function save() {
+async function save() {
   if (!db) {
     // Fallback ke localStorage jika IndexedDB belum siap
     try {
@@ -861,8 +861,52 @@ function save() {
     }
   } else {
     // Simpan ke IndexedDB (non-blocking)
-    dbSet('exp_trips', trips);
-    dbSet('exp_idx', activeIdx);
+    await dbSet('exp_trips', trips);
+    await dbSet('exp_idx', activeIdx);
+  }
+
+  // Sync to Firestore if user is logged in
+  if (firebaseDb && currentUser && activeIdx >= 0 && activeIdx < trips.length) {
+    try {
+      setSyncStatus('syncing');
+      const trip = trips[activeIdx];
+      const { doc, setDoc, serverTimestamp } = window;
+
+      // Prepare trip data for Firestore
+      const tripData = {
+        name: trip.name,
+        dest: trip.dest,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        days: trip.days,
+        ownerId: currentUser.uid,
+        budgets: trip.budgets || {},
+        staff: trip.staff || [],
+        manager: trip.manager || [],
+        customer: trip.customer || [],
+        lastModified: serverTimestamp()
+      };
+
+      // Set owner and shared list if not already set
+      if (!trip.ownerId) {
+        tripData.ownerId = currentUser.uid;
+        trip.ownerId = currentUser.uid;
+      }
+
+      if (!trip.sharedWith) {
+        tripData.sharedWith = { [currentUser.uid]: 'owner' };
+        trip.sharedWith = { [currentUser.uid]: 'owner' };
+      }
+
+      const tripRef = doc(firebaseDb, 'trips', trip.id || trip.name);
+      await setDoc(tripRef, tripData, { merge: true });
+
+      setSyncStatus('synced');
+      console.log('Trip synced to Firestore:', trip.name);
+    } catch (err) {
+      console.error('Firestore sync error:', err);
+      setSyncStatus('offline');
+    }
   }
 }
 
@@ -1787,11 +1831,32 @@ document.getElementById('m-trip-ok').addEventListener('click', () => {
 document.getElementById('m-confirm-no').addEventListener('click', () => closeModal('m-confirm'));
 document.getElementById('m-confirm-yes').addEventListener('click', () => {
   if (pendingDelMode === 'expense' && pendingDelTrip >= 0 && pendingDelId >= 0) {
+    // Check permission for expense deletion
+    if (currentUser) {
+      const trip = trips[pendingDelTrip];
+      const expense = trip.expenses.find(e => e.id === pendingDelId);
+      const isCreator = expense && expense.createdBy === currentUser.uid;
+      const isOwner = trip.ownerId === currentUser.uid;
+
+      if (!isCreator && !isOwner && !checkPermission('delete_any')) {
+        toast('❌ Hanya pembuat atau pemilik trip yang bisa menghapus pengeluaran ini.');
+        closeModal('m-confirm');
+        return;
+      }
+    }
+
     trips[pendingDelTrip].expenses = trips[pendingDelTrip].expenses.filter(e => e.id !== pendingDelId);
     save();
     renderBudgetBar(); renderTodayList(); renderSummary(); renderAll(); renderExport();
     toast('Dihapus.', 'ok');
   } else if (pendingDelMode === 'trip' && pendingDelTrip >= 0) {
+    // Check permission for trip deletion (owner only)
+    if (currentUser && !checkPermission('manage')) {
+      toast('❌ Hanya pemilik trip yang bisa menghapusnya.');
+      closeModal('m-confirm');
+      return;
+    }
+
     trips.splice(pendingDelTrip, 1);
     if (activeIdx === pendingDelTrip) activeIdx = -1;
     if (activeIdx > pendingDelTrip) activeIdx--;
@@ -1984,6 +2049,12 @@ function validate(t, cat, amount, date, excludeExpenseId = null) {
 // ── ADD EXPENSE ───────────────────────────────────────────────────────────────
 document.getElementById('btn-add').addEventListener('click', () => {
   const t = trip(); if (!t) { toast('Pilih trip dulu.'); return; }
+
+  // Check permission (skip for offline users)
+  if (currentUser && !checkPermission('add')) {
+    toast('❌ Anda tidak memiliki akses untuk menambah pengeluaran (Viewer only).'); return;
+  }
+
   const desc   = document.getElementById('i-desc').value.trim();
   const amount = parseFloat(document.getElementById('i-amt').value);
   const date   = document.getElementById('i-date').value;
